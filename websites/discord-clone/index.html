@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chord — Discord Clone</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap');
+
+  :root {
+    --bg-primary: #313338;
+    --bg-secondary: #2b2d31;
+    --bg-tertiary: #1e1f22;
+    --bg-accent: #232428;
+    --bg-hover: #35373c;
+    --bg-active: #404249;
+    --bg-message-hover: #2e3035;
+    --channel-default: #96989d;
+    --channel-active: #dbdee1;
+    --text-primary: #dbdee1;
+    --text-secondary: #b5bac1;
+    --text-muted: #6d6f78;
+    --text-link: #00a8fc;
+    --brand: #5865f2;
+    --brand-hover: #4752c4;
+    --brand-light: #7289da;
+    --green: #23a55a;
+    --red: #f23f43;
+    --yellow: #f0b232;
+    --border: #1e1f22;
+    --scrollbar: #202225;
+    --input-bg: #383a40;
+    --mention-bg: rgba(88,101,242,0.1);
+    --user-color: #5865f2;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    display: flex; height: 100vh; overflow: hidden;
+    font-size: 14px; line-height: 1.375;
+  }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
+
+  /* SERVER BAR */
+  #server-bar {
+    width: 72px; background: var(--bg-tertiary);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 12px 0; gap: 8px; overflow-y: auto; flex-shrink: 0;
+  }
+  .server-icon {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: var(--bg-secondary);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; position: relative;
+    transition: border-radius .15s, background .15s;
+    font-weight: 700; font-size: 18px; overflow: hidden; flex-shrink: 0;
+  }
+  .server-icon::before {
+    content:''; position:absolute; left:-4px;
+    width:4px; height:0; background:white;
+    border-radius:0 4px 4px 0;
+    transition: height .2s; top:50%; transform:translateY(-50%);
+  }
+  .server-icon:hover { border-radius:30%; background:var(--brand); }
+  .server-icon:hover::before { height:20px; }
+  .server-icon.active { border-radius:30%; background:var(--brand); }
+  .server-icon.active::before { height:40px; }
+  .server-separator { width:32px; height:2px; background:var(--bg-hover); border-radius:1px; flex-shrink:0; }
+  .server-home { background:var(--bg-secondary); color:var(--brand-light); font-size:22px; }
+  .server-home:hover,.server-home.active { background:var(--brand); color:white; }
+
+  /* SIDEBAR */
+  #sidebar { width:240px; background:var(--bg-secondary); display:flex; flex-direction:column; flex-shrink:0; }
+  #server-header {
+    padding:12px 16px; border-bottom:1px solid var(--bg-tertiary);
+    font-weight:700; font-size:15px; cursor:pointer;
+    display:flex; align-items:center; justify-content:space-between;
+    height:48px; flex-shrink:0; transition:background .1s;
+  }
+  #server-header:hover { background:var(--bg-hover); }
+  #channel-list { flex:1; overflow-y:auto; padding:8px 0; }
+  .channel-category {
+    padding:16px 8px 4px 16px; color:var(--text-muted);
+    font-size:11px; font-weight:700; letter-spacing:.02em;
+    text-transform:uppercase; display:flex; align-items:center; gap:4px; cursor:pointer;
+  }
+  .channel-category:hover { color:var(--text-secondary); }
+  .channel-item {
+    display:flex; align-items:center;
+    padding:6px 8px 6px 16px; border-radius:4px;
+    margin:1px 8px; cursor:pointer; color:var(--channel-default);
+    font-weight:500; gap:6px; position:relative; transition:background .05s, color .05s;
+  }
+  .channel-item:hover { background:var(--bg-hover); color:var(--channel-active); }
+  .channel-item.active { background:var(--bg-active); color:var(--channel-active); }
+  .channel-item .ch-icon { font-size:18px; opacity:.7; flex-shrink:0; width:18px; text-align:center; }
+  .channel-item.active .ch-icon { opacity:1; }
+  .channel-item .ch-name { flex:1; font-size:15px; }
+  .channel-item .ch-badge { background:var(--red); color:white; font-size:10px; font-weight:800; padding:1px 5px; border-radius:8px; min-width:16px; text-align:center; }
+  .channel-item .ch-lock { color:var(--text-muted); font-size:12px; opacity:0; }
+  .channel-item:hover .ch-lock { opacity:1; }
+  .channel-item.unread .ch-name { color:var(--text-primary); font-weight:700; }
+  .channel-item.unread::before { content:''; position:absolute; left:-8px; top:50%; transform:translateY(-50%); width:4px; height:4px; border-radius:50%; background:var(--text-primary); }
+
+  /* USER PANEL */
+  #user-panel {
+    height:52px; background:var(--bg-accent);
+    display:flex; align-items:center; padding:0 8px; gap:8px;
+    flex-shrink:0; cursor:pointer; transition:background .1s;
+  }
+  #user-panel:hover { background:#1a1b1e; }
+  .user-avatar {
+    width:32px; height:32px; border-radius:50%;
+    background:var(--user-color);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:13px; cursor:pointer; position:relative; flex-shrink:0;
+  }
+  .user-avatar .status-dot { position:absolute; bottom:-1px; right:-1px; width:10px; height:10px; border-radius:50%; background:var(--green); border:2px solid var(--bg-accent); }
+  .user-info { flex:1; min-width:0; }
+  .user-info .username { font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .user-info .tag { font-size:11px; color:var(--text-muted); }
+  .user-controls { display:flex; gap:2px; }
+  .user-controls button { background:none; border:none; cursor:pointer; color:var(--text-muted); padding:4px; border-radius:4px; font-size:16px; transition:color .1s; display:flex; align-items:center; width:28px; height:28px; }
+  .user-controls button:hover { color:var(--text-primary); background:var(--bg-hover); }
+
+  /* MAIN */
+  #main { flex:1; display:flex; flex-direction:column; background:var(--bg-primary); min-width:0; }
+  #chat-header {
+    height:48px; background:var(--bg-primary); border-bottom:1px solid var(--bg-tertiary);
+    display:flex; align-items:center; padding:0 16px; gap:8px;
+    flex-shrink:0; box-shadow:0 1px 0 rgba(0,0,0,.3); z-index:1;
+  }
+  #chat-header .hash { color:var(--text-muted); font-size:22px; font-weight:700; flex-shrink:0; }
+  #chat-header .channel-name { font-weight:700; font-size:15px; }
+  #chat-header .divider { width:1px; height:24px; background:var(--text-muted); opacity:.3; margin:0 8px; }
+  #chat-header .topic { color:var(--text-muted); font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1; }
+  .header-actions { display:flex; align-items:center; gap:4px; flex-shrink:0; }
+  .header-actions button { background:none; border:none; cursor:pointer; color:var(--text-muted); padding:4px 6px; border-radius:4px; font-size:18px; transition:color .1s; display:flex; align-items:center; }
+  .header-actions button:hover { color:var(--text-primary); background:var(--bg-hover); }
+  #search-box { background:var(--bg-tertiary); border:none; border-radius:4px; color:var(--text-primary); font-family:inherit; font-size:13px; padding:2px 8px; height:24px; width:144px; outline:none; }
+  #search-box::placeholder { color:var(--text-muted); }
+
+  /* MESSAGES */
+  #messages { flex:1; overflow-y:auto; padding:16px 0 8px; display:flex; flex-direction:column; }
+  .message-group { display:flex; padding:2px 16px 2px 72px; position:relative; transition:background .05s; }
+  .message-group:hover { background:var(--bg-message-hover); }
+  .message-group.new-author { margin-top:16px; animation:fadeSlideIn .15s ease; }
+  @keyframes fadeSlideIn { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+  .msg-avatar { position:absolute; left:16px; top:2px; width:40px; height:40px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px; flex-shrink:0; }
+  .msg-content { flex:1; min-width:0; }
+  .msg-header { display:flex; align-items:baseline; gap:8px; margin-bottom:2px; }
+  .msg-author { font-weight:700; font-size:15px; cursor:pointer; }
+  .msg-author:hover { text-decoration:underline; }
+  .msg-time { font-size:11px; color:var(--text-muted); }
+  .msg-bot-badge { background:var(--brand); color:white; font-size:10px; font-weight:700; padding:1px 4px; border-radius:3px; }
+  .msg-text { color:var(--text-primary); font-size:15px; word-break:break-word; line-height:1.5; }
+  .msg-text .mention { background:var(--mention-bg); color:#bcc0f0; padding:0 2px; border-radius:3px; cursor:pointer; }
+  .msg-text .mention:hover { background:var(--brand); color:white; }
+  .msg-text code { background:var(--bg-tertiary); font-family:'Fira Code',monospace; font-size:13px; padding:1px 5px; border-radius:3px; }
+  .msg-time-small { position:absolute; left:16px; top:50%; transform:translateY(-50%); font-size:10px; color:var(--text-muted); opacity:0; width:56px; text-align:right; }
+  .message-group:hover .msg-time-small { opacity:1; }
+  .message-group.new-author .msg-time-small { display:none; }
+  .msg-actions { position:absolute; right:16px; top:-16px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:4px; display:none; gap:2px; padding:2px; box-shadow:0 4px 12px rgba(0,0,0,.4); }
+  .message-group:hover .msg-actions { display:flex; }
+  .msg-actions button { background:none; border:none; cursor:pointer; color:var(--text-muted); padding:4px 6px; border-radius:3px; font-size:16px; transition:color .1s; }
+  .msg-actions button:hover { color:var(--text-primary); background:var(--bg-hover); }
+  .msg-embed { margin-top:6px; border-left:4px solid var(--brand); background:var(--bg-secondary); border-radius:0 4px 4px 0; padding:8px 12px; max-width:520px; }
+  .embed-title { font-weight:700; margin-bottom:4px; }
+  .embed-desc { font-size:13px; color:var(--text-secondary); }
+  .msg-reactions { display:flex; gap:4px; flex-wrap:wrap; margin-top:4px; }
+  .reaction { background:var(--bg-secondary); border:1px solid var(--bg-hover); border-radius:4px; padding:2px 8px; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:5px; transition:background .1s; user-select:none; }
+  .reaction:hover { background:var(--bg-hover); }
+  .reaction.reacted { background:var(--mention-bg); border-color:var(--brand); color:#bcc0f0; }
+  .reaction .r-count { font-weight:700; font-size:12px; }
+  .date-divider { display:flex; align-items:center; gap:12px; padding:16px 16px 8px; color:var(--text-muted); font-size:12px; font-weight:600; }
+  .date-divider::before,.date-divider::after { content:''; flex:1; height:1px; background:var(--bg-hover); }
+
+  /* INPUT */
+  #input-area { padding:0 16px 24px; flex-shrink:0; }
+  .input-wrapper { background:var(--input-bg); border-radius:8px; display:flex; align-items:flex-end; min-height:44px; }
+  .input-btn { background:none; border:none; cursor:pointer; color:var(--text-muted); padding:10px 12px; font-size:20px; transition:color .1s; display:flex; align-items:center; flex-shrink:0; }
+  .input-btn:hover { color:var(--text-primary); }
+  #chat-input { flex:1; background:none; border:none; outline:none; color:var(--text-primary); font-family:inherit; font-size:15px; padding:11px 0; resize:none; max-height:240px; line-height:1.5; }
+  #chat-input::placeholder { color:var(--text-muted); }
+  .typing-indicator { height:20px; padding:2px 16px 0; font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:4px; }
+  .typing-dots { display:flex; gap:3px; align-items:center; }
+  .typing-dots span { width:4px; height:4px; border-radius:50%; background:var(--text-secondary); animation:bounce 1.2s infinite; }
+  .typing-dots span:nth-child(2){animation-delay:.2s} .typing-dots span:nth-child(3){animation-delay:.4s}
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-4px)} }
+
+  /* MEMBER SIDEBAR */
+  #member-sidebar { width:240px; background:var(--bg-secondary); padding:16px 0; overflow-y:auto; flex-shrink:0; border-left:1px solid var(--bg-tertiary); }
+  .member-section { padding:8px 8px 4px 16px; color:var(--text-muted); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.02em; }
+  .member-item { display:flex; align-items:center; padding:4px 8px 4px 12px; margin:1px 8px; border-radius:4px; cursor:pointer; gap:10px; transition:background .05s; }
+  .member-item:hover { background:var(--bg-hover); }
+  .member-avatar { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; position:relative; flex-shrink:0; }
+  .member-status { position:absolute; bottom:-1px; right:-1px; width:10px; height:10px; border-radius:50%; border:2px solid var(--bg-secondary); }
+  .member-status.online{background:var(--green)} .member-status.idle{background:var(--yellow)} .member-status.dnd{background:var(--red)} .member-status.offline{background:var(--text-muted)}
+  .member-name { font-size:14px; font-weight:600; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .member-item:hover .member-name { color:var(--text-primary); }
+  .member-role { margin-left:auto; font-size:10px; }
+
+  /* ═══════════ PROFILE MODAL ═══════════ */
+  #profile-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,.75); z-index:1000;
+    align-items:center; justify-content:center;
+  }
+  #profile-overlay.open { display:flex; animation:fadeIn .15s ease; }
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+  #profile-modal {
+    background:var(--bg-tertiary); border-radius:8px; width:680px; max-height:88vh;
+    display:flex; flex-direction:column; overflow:hidden;
+    box-shadow:0 24px 64px rgba(0,0,0,.7); position:relative;
+    animation:modalPop .2s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes modalPop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+
+  .modal-close { position:absolute; top:14px; right:14px; background:var(--bg-hover); border:none; cursor:pointer; width:28px; height:28px; border-radius:50%; color:var(--text-muted); font-size:16px; display:flex; align-items:center; justify-content:center; transition:all .1s; z-index:2; }
+  .modal-close:hover { background:var(--bg-active); color:var(--text-primary); }
+
+  .modal-tabs { display:flex; background:var(--bg-secondary); border-bottom:1px solid var(--bg-tertiary); padding:0 16px; gap:4px; flex-shrink:0; }
+  .modal-tab { padding:12px 16px; cursor:pointer; font-size:14px; font-weight:600; color:var(--text-muted); border-bottom:2px solid transparent; transition:color .1s, border-color .1s; margin-bottom:-1px; background:none; border-top:none; border-left:none; border-right:none; font-family:inherit; }
+  .modal-tab:hover { color:var(--text-secondary); }
+  .modal-tab.active { color:var(--text-primary); border-bottom-color:var(--brand); }
+
+  .modal-body { display:flex; flex:1; overflow:hidden; min-height:400px; }
+  .modal-left { flex:1; padding:24px; overflow-y:auto; display:flex; flex-direction:column; gap:22px; }
+  .modal-right { width:230px; background:var(--bg-secondary); padding:20px 16px; flex-shrink:0; border-left:1px solid var(--bg-tertiary); }
+
+  .preview-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); margin-bottom:12px; }
+  .profile-card { background:var(--bg-primary); border-radius:8px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,.4); }
+  .profile-card-banner { height:64px; transition:background .3s; position:relative; }
+  .profile-card-avatar { position:absolute; bottom:-22px; left:12px; width:52px; height:52px; border-radius:50%; background:var(--user-color); border:4px solid var(--bg-primary); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:19px; transition:background .3s; }
+  .profile-card-body { padding:30px 14px 14px; }
+  .profile-card-name { font-weight:800; font-size:15px; }
+  .profile-card-pronouns { font-size:12px; color:var(--text-muted); margin-top:2px; min-height:16px; }
+  .profile-card-divider { height:1px; background:var(--bg-hover); margin:10px 0; }
+  .profile-card-bio-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); margin-bottom:5px; }
+  .profile-card-bio { font-size:13px; color:var(--text-secondary); line-height:1.4; word-break:break-word; min-height:20px; }
+  .profile-card-status { font-size:12px; color:var(--text-muted); margin-top:6px; }
+
+  .section-title { font-size:16px; font-weight:800; }
+  .section-hint { font-size:12px; color:var(--text-muted); margin-top:3px; }
+  .field-group { display:flex; flex-direction:column; gap:7px; }
+  .field-label { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); }
+  .field-input { background:var(--bg-tertiary); border:1px solid #000; border-radius:4px; color:var(--text-primary); font-family:inherit; font-size:15px; padding:10px 12px; outline:none; width:100%; transition:border-color .15s; }
+  .field-input:focus { border-color:var(--brand); }
+  .field-input::placeholder { color:var(--text-muted); }
+  textarea.field-input { resize:vertical; min-height:80px; max-height:140px; line-height:1.5; }
+
+  .pronouns-pills { display:flex; gap:6px; flex-wrap:wrap; }
+  .pronoun-pill { padding:4px 12px; border-radius:16px; font-size:13px; font-weight:600; background:var(--bg-hover); color:var(--text-secondary); cursor:pointer; border:1px solid transparent; transition:all .1s; user-select:none; }
+  .pronoun-pill:hover { background:var(--bg-active); color:var(--text-primary); }
+  .pronoun-pill.selected { background:var(--mention-bg); border-color:var(--brand); color:#bcc0f0; }
+
+  .color-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .color-swatch { width:32px; height:32px; border-radius:50%; cursor:pointer; border:3px solid transparent; transition:transform .1s, border-color .1s; flex-shrink:0; }
+  .color-swatch:hover { transform:scale(1.15); }
+  .color-swatch.selected { border-color:white; transform:scale(1.1); }
+  .color-custom-btn { width:32px; height:32px; border-radius:50%; border:2px dashed var(--text-muted); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:16px; color:var(--text-muted); background:none; transition:all .1s; }
+  .color-custom-btn:hover { border-color:var(--text-primary); color:var(--text-primary); }
+  #color-picker-input { display:none; }
+  .field-hint { font-size:12px; color:var(--text-muted); }
+
+  .status-options { display:flex; gap:8px; flex-wrap:wrap; }
+  .status-option { flex:1; min-width:100px; display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:6px; cursor:pointer; background:var(--bg-hover); border:2px solid transparent; transition:all .1s; user-select:none; font-size:13px; font-weight:600; }
+  .status-option:hover { background:var(--bg-active); }
+  .status-option.selected { border-color:var(--brand); background:var(--mention-bg); }
+  .status-dot-big { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+
+  .modal-footer { display:flex; align-items:center; justify-content:flex-end; padding:16px 24px; gap:12px; flex-shrink:0; border-top:1px solid var(--bg-secondary); }
+  .btn { padding:10px 20px; border-radius:4px; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer; border:none; transition:background .1s; }
+  .btn-ghost { background:none; color:var(--text-secondary); }
+  .btn-ghost:hover { color:var(--text-primary); text-decoration:underline; }
+  .btn-brand { background:var(--brand); color:white; }
+  .btn-brand:hover { background:var(--brand-hover); }
+
+  /* Nitro tab */
+  .nitro-banner { background:linear-gradient(135deg,#f47fff,#8a6cff); border-radius:8px; padding:24px; text-align:center; }
+  .nitro-banner h2 { font-size:22px; font-weight:800; margin-bottom:6px; }
+  .nitro-banner p { font-size:14px; opacity:.85; margin-bottom:16px; }
+  .nitro-btn { background:white; color:#8a6cff; padding:10px 24px; border-radius:24px; font-weight:800; font-size:14px; cursor:pointer; border:none; }
+  .nitro-perk { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--bg-hover); font-size:14px; }
+  .nitro-perk:last-child { border:none; }
+  .nitro-perk .perk-icon { font-size:24px; flex-shrink:0; }
+  .nitro-perk strong { display:block; }
+  .nitro-perk span { font-size:12px; color:var(--text-muted); }
+</style>
+</head>
+<body>
+
+<!-- SERVER BAR -->
+<div id="server-bar">
+  <div class="server-icon server-home active">⚡</div>
+  <div class="server-separator"></div>
+  <div class="server-icon" style="background:#ed4245;font-size:14px;">GH</div>
+  <div class="server-icon" style="background:#3ba55c;font-size:14px;">DL</div>
+  <div class="server-icon" style="background:#faa61a;font-size:14px;">🎵</div>
+  <div class="server-icon" style="background:#9b59b6;font-size:14px;">🎨</div>
+  <div class="server-icon" style="font-size:24px;color:#3ba55c;">+</div>
+</div>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div id="server-header">
+    <span>Chord Central</span>
+    <span style="color:var(--text-secondary);">∨</span>
+  </div>
+  <div id="channel-list">
+    <div class="channel-category">▾ Information</div>
+    <div class="channel-item" onclick="switchChannel(this,'📋','rules','Read and follow the rules!')"><span class="ch-icon">📋</span><span class="ch-name">rules</span></div>
+    <div class="channel-item" onclick="switchChannel(this,'📢','announcements','Server-wide announcements')"><span class="ch-icon">📢</span><span class="ch-name">announcements</span></div>
+    <div class="channel-category">▾ General</div>
+    <div class="channel-item active" onclick="switchChannel(this,'#','general','Talk about anything!')"><span class="ch-icon">#</span><span class="ch-name">general</span></div>
+    <div class="channel-item unread" onclick="switchChannel(this,'#','off-topic','Random discussions')"><span class="ch-icon">#</span><span class="ch-name">off-topic</span><span class="ch-badge">3</span></div>
+    <div class="channel-item" onclick="switchChannel(this,'#','introductions','Introduce yourself!')"><span class="ch-icon">#</span><span class="ch-name">introductions</span></div>
+    <div class="channel-category">▾ Development</div>
+    <div class="channel-item" onclick="switchChannel(this,'#','dev-chat','Discuss dev topics')"><span class="ch-icon">#</span><span class="ch-name">dev-chat</span></div>
+    <div class="channel-item" onclick="switchChannel(this,'#','code-review','Post code for review')"><span class="ch-icon">#</span><span class="ch-name">code-review</span></div>
+    <div class="channel-item" onclick="switchChannel(this,'#','resources','Useful links')"><span class="ch-icon">#</span><span class="ch-name">resources</span><span class="ch-lock">🔒</span></div>
+    <div class="channel-category">▾ Voice</div>
+    <div class="channel-item"><span class="ch-icon">🔊</span><span class="ch-name">General Voice</span></div>
+    <div class="channel-item"><span class="ch-icon">🔊</span><span class="ch-name">Gaming</span></div>
+    <div class="channel-item"><span class="ch-icon">🎙</span><span class="ch-name">AFK</span></div>
+  </div>
+  <div id="user-panel" onclick="openProfile()">
+    <div class="user-avatar" id="panel-avatar">
+      <span id="panel-initials">YO</span>
+      <div class="status-dot" id="panel-status-dot"></div>
+    </div>
+    <div class="user-info">
+      <div class="username" id="panel-username">You</div>
+      <div class="tag" id="panel-tag">#0001 • Online</div>
+    </div>
+    <div class="user-controls" onclick="event.stopPropagation()">
+      <button title="Mute">🎤</button>
+      <button title="Deafen">🎧</button>
+      <button title="Edit Profile" onclick="event.stopPropagation();openProfile()">⚙️</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN CHAT -->
+<div id="main">
+  <div id="chat-header">
+    <span class="hash">#</span>
+    <span class="channel-name" id="current-channel">general</span>
+    <div class="divider"></div>
+    <span class="topic" id="current-topic">Talk about anything!</span>
+    <div class="header-actions">
+      <button>📌</button>
+      <button onclick="toggleMembers()">👥</button>
+      <button>🔔</button>
+      <input id="search-box" placeholder="Search" />
+    </div>
+  </div>
+
+  <div id="messages">
+    <div class="date-divider">Today</div>
+    <div class="message-group new-author">
+      <div class="msg-avatar" style="background:#ed4245;">AL</div>
+      <div class="msg-content">
+        <div class="msg-header"><span class="msg-author" style="color:#ed4245;">Alex</span><span class="msg-time">Today at 9:12 AM</span></div>
+        <div class="msg-text">Hey everyone! Welcome to <span class="mention">@Chord Central</span> 🎉 Check out <span class="mention">#rules</span> first!</div>
+      </div>
+      <div class="msg-actions"><button>😀</button><button>↩</button><button>•••</button></div>
+    </div>
+    <div class="message-group new-author">
+      <div class="msg-avatar" style="background:#3ba55c;">SA</div>
+      <div class="msg-content">
+        <div class="msg-header"><span class="msg-author" style="color:#3ba55c;">Sarah</span><span class="msg-bot-badge">BOT</span><span class="msg-time">Today at 9:14 AM</span></div>
+        <div class="msg-text">✅ Server boosted to <strong>Level 2</strong>!</div>
+        <div class="msg-embed"><div class="embed-title">🚀 Nitro Boost Active</div><div class="embed-desc">This server now has 8 boosts. Only 7 more to reach Level 3!</div></div>
+        <div class="msg-reactions">
+          <div class="reaction reacted" onclick="toggleReaction(this)"><span>🎉</span><span class="r-count">12</span></div>
+          <div class="reaction" onclick="toggleReaction(this)"><span>🚀</span><span class="r-count">7</span></div>
+        </div>
+      </div>
+      <div class="msg-actions"><button>😀</button><button>↩</button><button>•••</button></div>
+    </div>
+    <div class="message-group new-author">
+      <div class="msg-avatar" style="background:#faa61a;">MK</div>
+      <div class="msg-content">
+        <div class="msg-header"><span class="msg-author" style="color:#faa61a;">Mike</span><span class="msg-time">Today at 10:03 AM</span></div>
+        <div class="msg-text">Pro tip — click your name at the bottom-left to customize your profile! 👇 And just chat naturally, we're all real people here 😄</div>
+      </div>
+      <div class="msg-actions"><button>😀</button><button>↩</button><button>•••</button></div>
+    </div>
+    <div class="message-group new-author" id="first-own-group">
+      <div class="msg-avatar" id="first-own-avatar" style="background:var(--user-color);">YO</div>
+      <div class="msg-content">
+        <div class="msg-header"><span class="msg-author" id="first-own-name" style="color:var(--user-color);">You</span><span class="msg-time">Today at 12:05 PM</span></div>
+        <div class="msg-text">Hey all! Excited to be here 👋</div>
+        <div class="msg-reactions"><div class="reaction" onclick="toggleReaction(this)"><span>👋</span><span class="r-count">5</span></div></div>
+      </div>
+      <div class="msg-actions"><button>😀</button><button>↩</button><button onclick="deleteMsg(this)">🗑️</button></div>
+    </div>
+  </div>
+
+  <div class="typing-indicator" id="typing-indicator" style="opacity:0;transition:opacity .2s;">
+    <div class="typing-dots"><span></span><span></span><span></span></div>
+    <span id="typing-text">Alex is typing...</span>
+  </div>
+
+  <div id="input-area">
+    <div class="input-wrapper">
+      <button class="input-btn">➕</button>
+      <textarea id="chat-input" placeholder="Message #general" rows="1"
+        oninput="autoResize(this)" onkeydown="handleKey(event)"></textarea>
+      <button class="input-btn">😀</button>
+      <button class="input-btn">GIF</button>
+      <button class="input-btn" style="color:var(--brand)" onclick="sendMessage()">➤</button>
+    </div>
+  </div>
+</div>
+
+<!-- MEMBER SIDEBAR -->
+<div id="member-sidebar">
+  <div class="member-section">Online — 5</div>
+  <div class="member-item"><div class="member-avatar" style="background:#ed4245;">AL<div class="member-status online"></div></div><span class="member-name">Alex</span><span class="member-role" style="color:#f47fff;">Admin</span></div>
+  <div class="member-item"><div class="member-avatar" style="background:#3ba55c;">SA<div class="member-status online"></div></div><span class="member-name">Sarah</span><span class="member-role" style="color:#3ba55c;">Bot</span></div>
+  <div class="member-item"><div class="member-avatar" style="background:#00b0f4;">RB<div class="member-status online"></div></div><span class="member-name">Ryan</span><span class="member-role" style="color:#faa61a;">Mod</span></div>
+  <div class="member-item"><div class="member-avatar" style="background:#9b59b6;">JL<div class="member-status idle"></div></div><span class="member-name">Jade</span></div>
+  <div class="member-item"><div class="member-avatar" style="background:#faa61a;">MK<div class="member-status dnd"></div></div><span class="member-name">Mike</span></div>
+  <div class="member-item" style="opacity:.7;" id="member-you">
+    <div class="member-avatar" id="member-you-av" style="background:var(--user-color);">YO<div class="member-status online" id="member-you-status"></div></div>
+    <span class="member-name" id="member-you-name">You</span>
+    <span class="member-role" style="color:var(--brand);">You</span>
+  </div>
+  <div class="member-section" style="margin-top:12px;">Offline — 3</div>
+  <div class="member-item" style="opacity:.5;"><div class="member-avatar" style="background:#747f8d;">TC<div class="member-status offline"></div></div><span class="member-name">Tom</span></div>
+  <div class="member-item" style="opacity:.5;"><div class="member-avatar" style="background:#747f8d;">EM<div class="member-status offline"></div></div><span class="member-name">Emma</span></div>
+  <div class="member-item" style="opacity:.5;"><div class="member-avatar" style="background:#747f8d;">NR<div class="member-status offline"></div></div><span class="member-name">Noah</span></div>
+</div>
+
+<!-- ════════════ PROFILE MODAL ════════════ -->
+<div id="profile-overlay" onclick="overlayClick(event)">
+  <div id="profile-modal">
+    <button class="modal-close" onclick="closeProfile()">✕</button>
+
+    <div class="modal-tabs">
+      <button class="modal-tab active" onclick="switchTab('profile',this)">Profile</button>
+      <button class="modal-tab" onclick="switchTab('about',this)">About Me</button>
+      <button class="modal-tab" onclick="switchTab('nitro',this)">Nitro</button>
+    </div>
+
+    <!-- PROFILE TAB -->
+    <div class="modal-body" id="tab-profile">
+      <div class="modal-left">
+        <div><div class="section-title">Your Profile</div><div class="section-hint">Customize how others see you in Chord Central.</div></div>
+
+        <div class="field-group">
+          <label class="field-label">Display Name</label>
+          <input class="field-input" id="input-username" placeholder="Enter a display name" value="You" oninput="livePreview()">
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Pronouns</label>
+          <div class="pronouns-pills">
+            <div class="pronoun-pill" onclick="pickPronoun(this,'he/him')">he/him</div>
+            <div class="pronoun-pill" onclick="pickPronoun(this,'she/her')">she/her</div>
+            <div class="pronoun-pill" onclick="pickPronoun(this,'they/them')">they/them</div>
+            <div class="pronoun-pill" onclick="pickPronoun(this,'he/they')">he/they</div>
+            <div class="pronoun-pill" onclick="pickPronoun(this,'she/they')">she/they</div>
+            <div class="pronoun-pill" onclick="pickPronoun(this,'any/all')">any/all</div>
+          </div>
+          <input class="field-input" id="input-pronouns" placeholder="Or type custom pronouns…" style="margin-top:8px;" oninput="clearPillSelection();livePreview()">
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Profile &amp; Banner Color</label>
+          <div class="color-row">
+            <div class="color-swatch selected" style="background:#5865f2;" data-color="#5865f2" onclick="pickColor(this)"></div>
+            <div class="color-swatch" style="background:#ed4245;" data-color="#ed4245" onclick="pickColor(this)"></div>
+            <div class="color-swatch" style="background:#3ba55c;" data-color="#3ba55c" onclick="pickColor(this)"></div>
+            <div class="color-swatch" style="background:#faa61a;" data-color="#faa61a" onclick="pickColor(this)"></div>
+            <div class="color-swatch" style="background:#9b59b6;" data-color="#9b59b6" onclick="pickColor(this)"></div>
+            <div class="color-swatch" style="background:#00b0f4;" data-color="#00b0f4" onclick="pickColor(this)"></div>
+            <div class="color-swatch" style="background:#f47fff;" data-color="#f47fff" onclick="pickColor(this)"></div>
+            <div class="color-swatch" style="background:#ff6b6b;" data-color="#ff6b6b" onclick="pickColor(this)"></div>
+            <div class="color-swatch" style="background:#43b581;" data-color="#43b581" onclick="pickColor(this)"></div>
+            <div class="color-swatch" style="background:#ff9500;" data-color="#ff9500" onclick="pickColor(this)"></div>
+            <button class="color-custom-btn" onclick="document.getElementById('color-picker-input').click()">🎨</button>
+            <input type="color" id="color-picker-input" value="#5865f2" onchange="pickCustomColor(this.value)">
+          </div>
+          <div class="field-hint">Sets your avatar background and profile banner color.</div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Status</label>
+          <div class="status-options">
+            <div class="status-option selected" onclick="pickStatus(this,'online','Online','#23a55a')">
+              <div class="status-dot-big" style="background:#23a55a;"></div>Online
+            </div>
+            <div class="status-option" onclick="pickStatus(this,'idle','Idle','#f0b232')">
+              <div class="status-dot-big" style="background:#f0b232;"></div>Idle
+            </div>
+            <div class="status-option" onclick="pickStatus(this,'dnd','Do Not Disturb','#f23f43')">
+              <div class="status-dot-big" style="background:#f23f43;"></div>DND
+            </div>
+            <div class="status-option" onclick="pickStatus(this,'invisible','Invisible','#747f8d')">
+              <div class="status-dot-big" style="background:#747f8d;"></div>Invisible
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-right">
+        <div class="preview-label">Preview</div>
+        <div class="profile-card" id="preview-card">
+          <div class="profile-card-banner" id="prev-banner" style="background:var(--user-color);">
+            <div class="profile-card-avatar" id="prev-avatar">YO</div>
+          </div>
+          <div class="profile-card-body">
+            <div class="profile-card-name" id="prev-name">You</div>
+            <div class="profile-card-pronouns" id="prev-pronouns"></div>
+            <div class="profile-card-divider"></div>
+            <div class="profile-card-bio-label">About Me</div>
+            <div class="profile-card-bio" id="prev-bio">Tell others about yourself!</div>
+            <div class="profile-card-status" id="prev-status-msg"></div>
+          </div>
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:var(--text-muted);">Click your name at the bottom-left anytime to reopen this.</div>
+      </div>
+    </div>
+
+    <!-- ABOUT ME TAB -->
+    <div class="modal-body" id="tab-about" style="display:none;">
+      <div class="modal-left">
+        <div><div class="section-title">About Me</div><div class="section-hint">Let the community know who you are. You can use emoji!</div></div>
+        <div class="field-group">
+          <label class="field-label">Bio <span id="char-count" style="font-weight:400;text-transform:none;letter-spacing:0;">(0/190)</span></label>
+          <textarea class="field-input" id="input-bio" placeholder="Tell others a little bit about yourself…" maxlength="190" oninput="updateCharCount();livePreview()"></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Custom Status</label>
+          <input class="field-input" id="input-status-msg" placeholder="🎮 Gaming, 🎵 Listening to music…" oninput="livePreview()">
+          <div class="field-hint">Shows below your name on your profile card.</div>
+        </div>
+      </div>
+      <div class="modal-right">
+        <div class="preview-label">Preview</div>
+        <div class="profile-card">
+          <div class="profile-card-banner" id="prev-banner-2" style="background:var(--user-color);">
+            <div class="profile-card-avatar" id="prev-avatar-2">YO</div>
+          </div>
+          <div class="profile-card-body">
+            <div class="profile-card-name" id="prev-name-2">You</div>
+            <div class="profile-card-pronouns" id="prev-pronouns-2"></div>
+            <div class="profile-card-divider"></div>
+            <div class="profile-card-bio-label">About Me</div>
+            <div class="profile-card-bio" id="prev-bio-2">Tell others about yourself!</div>
+            <div class="profile-card-status" id="prev-status-msg-2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NITRO TAB -->
+    <div class="modal-body" id="tab-nitro" style="display:none;">
+      <div class="modal-left">
+        <div class="nitro-banner">
+          <h2>✨ Discord Nitro</h2>
+          <p>Animated avatars, custom emojis, bigger uploads, and more!</p>
+          <button class="nitro-btn">Get Nitro — $9.99/mo</button>
+        </div>
+        <div style="margin-top:20px;">
+          <div class="nitro-perk"><span class="perk-icon">🎭</span><div><strong>Animated Avatar</strong><span>Express yourself with a GIF profile picture</span></div></div>
+          <div class="nitro-perk"><span class="perk-icon">😂</span><div><strong>Custom Emojis Everywhere</strong><span>Use your fave emojis in any server</span></div></div>
+          <div class="nitro-perk"><span class="perk-icon">🚀</span><div><strong>2 Free Server Boosts</strong><span>Boost your favourite servers monthly</span></div></div>
+          <div class="nitro-perk"><span class="perk-icon">📁</span><div><strong>500MB File Uploads</strong><span>Share large files with ease</span></div></div>
+          <div class="nitro-perk"><span class="perk-icon">🎨</span><div><strong>Custom Profile Themes</strong><span>Unlock gradient banners and special badges</span></div></div>
+        </div>
+      </div>
+      <div class="modal-right" style="display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;text-align:center;">
+        <div style="font-size:52px;">💎</div>
+        <div style="font-weight:800;font-size:15px;">Nitro</div>
+        <div style="font-size:12px;color:var(--text-muted);">Upgrade to unlock<br>the full experience</div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeProfile()">Cancel</button>
+      <button class="btn btn-brand" id="save-btn" onclick="saveProfile()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══ USER STATE ══════════════════════════════════
+const user = {
+  username: 'You',
+  initials: 'YO',
+  pronouns: '',
+  bio: '',
+  statusMsg: '',
+  color: '#5865f2',
+  status: 'online',
+  statusColor: '#23a55a',
+  statusLabel: 'Online'
+};
+
+// ═══ MODAL ═══════════════════════════════════════
+function openProfile() {
+  document.getElementById('input-username').value = user.username;
+  document.getElementById('input-pronouns').value = user.pronouns;
+  document.getElementById('input-bio').value = user.bio;
+  document.getElementById('input-status-msg').value = user.statusMsg;
+  updateCharCount();
+  livePreview();
+  document.getElementById('profile-overlay').classList.add('open');
+}
+function closeProfile() { document.getElementById('profile-overlay').classList.remove('open'); }
+function overlayClick(e) { if (e.target === document.getElementById('profile-overlay')) closeProfile(); }
+
+function switchTab(name, btn) {
+  ['profile','about','nitro'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = (t===name) ? 'flex' : 'none';
+  });
+  document.querySelectorAll('.modal-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  livePreview();
+}
+
+// ═══ LIVE PREVIEW ═════════════════════════════════
+function getFormValues() {
+  const name = document.getElementById('input-username').value.trim() || 'You';
+  const pronounInput = document.getElementById('input-pronouns').value.trim();
+  const selectedPill = document.querySelector('.pronoun-pill.selected');
+  const pronouns = pronounInput || (selectedPill ? selectedPill.textContent : '');
+  const bio = document.getElementById('input-bio').value.trim() || 'Tell others about yourself!';
+  const statusMsg = document.getElementById('input-status-msg').value.trim();
+  const initials = name.slice(0,2).toUpperCase();
+  return { name, pronouns, bio, statusMsg, initials };
+}
+
+function livePreview() {
+  const { name, pronouns, bio, statusMsg, initials } = getFormValues();
+  const color = user.color;
+  [['',''],['2','2']].forEach(([s1,s2]) => {
+    const sfx = s1;
+    const el = (id) => document.getElementById(id + (sfx ? '-'+sfx : ''));
+    const banner = document.getElementById('prev-banner' + (sfx ? '-'+sfx : ''));
+    const avatar = document.getElementById('prev-avatar' + (sfx ? '-'+sfx : ''));
+    const nm = document.getElementById('prev-name' + (sfx ? '-'+sfx : ''));
+    const pr = document.getElementById('prev-pronouns' + (sfx ? '-'+sfx : ''));
+    const bi = document.getElementById('prev-bio' + (sfx ? '-'+sfx : ''));
+    const sm = document.getElementById('prev-status-msg' + (sfx ? '-'+sfx : ''));
+    if (banner) banner.style.background = color;
+    if (avatar) { avatar.style.background = color; avatar.textContent = initials; }
+    if (nm) nm.textContent = name;
+    if (pr) pr.textContent = pronouns;
+    if (bi) bi.textContent = bio;
+    if (sm) sm.textContent = statusMsg ? '• ' + statusMsg : '';
+  });
+}
+
+function updateCharCount() {
+  const len = document.getElementById('input-bio').value.length;
+  document.getElementById('char-count').textContent = `(${len}/190)`;
+}
+
+// ═══ PRONOUN PILLS ════════════════════════════════
+function pickPronoun(el, val) {
+  document.querySelectorAll('.pronoun-pill').forEach(p => p.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('input-pronouns').value = '';
+  livePreview();
+}
+function clearPillSelection() {
+  document.querySelectorAll('.pronoun-pill').forEach(p => p.classList.remove('selected'));
+}
+
+// ═══ COLOR ═══════════════════════════════════════
+function pickColor(el) {
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+  el.classList.add('selected');
+  user.color = el.dataset.color;
+  document.documentElement.style.setProperty('--user-color', user.color);
+  livePreview();
+}
+function pickCustomColor(val) {
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+  user.color = val;
+  document.documentElement.style.setProperty('--user-color', val);
+  livePreview();
+}
+
+// ═══ STATUS ═══════════════════════════════════════
+function pickStatus(el, status, label, color) {
+  document.querySelectorAll('.status-option').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  user.status = status;
+  user.statusColor = color;
+  user.statusLabel = label;
+}
+
+// ═══ SAVE ════════════════════════════════════════
+function saveProfile() {
+  const { name, pronouns, bio, statusMsg, initials } = getFormValues();
+  user.username = name;
+  user.initials = initials;
+  user.pronouns = pronouns;
+  user.bio = bio;
+  user.statusMsg = statusMsg;
+
+  applyProfileToUI();
+
+  const btn = document.getElementById('save-btn');
+  const orig = btn.style.background;
+  btn.textContent = '✓ Saved!';
+  btn.style.background = '#23a55a';
+  setTimeout(() => {
+    btn.textContent = 'Save Changes';
+    btn.style.background = '';
+    closeProfile();
+  }, 1000);
+}
+
+function applyProfileToUI() {
+  // Bottom panel
+  document.getElementById('panel-initials').textContent = user.initials;
+  document.getElementById('panel-avatar').style.background = user.color;
+  document.getElementById('panel-username').textContent = user.username;
+  document.getElementById('panel-tag').textContent = `#0001 • ${user.statusLabel}`;
+  const dot = document.getElementById('panel-status-dot');
+  dot.style.background = user.statusColor;
+
+  // Member sidebar
+  const mya = document.getElementById('member-you-av');
+  mya.style.background = user.color;
+  mya.firstChild.textContent = user.initials;
+  document.getElementById('member-you-status').className = 'member-status ' + user.status;
+  document.getElementById('member-you-name').textContent = user.username;
+
+  // First chat message avatar + name
+  document.getElementById('first-own-avatar').style.background = user.color;
+  document.getElementById('first-own-avatar').textContent = user.initials;
+  document.getElementById('first-own-name').style.color = user.color;
+  document.getElementById('first-own-name').textContent = user.username;
+
+  // CSS var
+  document.documentElement.style.setProperty('--user-color', user.color);
+}
+
+// ═══ CHAT ════════════════════════════════════════
+let membersVisible = true;
+let msgCount = 0;
+const conversationHistory = [];
+
+function toggleMembers() {
+  const ms = document.getElementById('member-sidebar');
+  membersVisible = !membersVisible;
+  ms.style.display = membersVisible ? 'block' : 'none';
+}
+function switchChannel(el, icon, name, topic) {
+  document.querySelectorAll('.channel-item').forEach(c => {
+    c.classList.remove('active','unread');
+    const b = c.querySelector('.ch-badge');
+    if (b) b.remove();
+  });
+  el.classList.add('active');
+  document.getElementById('current-channel').textContent = name;
+  document.getElementById('current-topic').textContent = topic;
+  document.getElementById('chat-input').placeholder = `Message ${icon==='#'?'#':''}${name}`;
+  document.getElementById('messages').scrollTop = 999999;
+}
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 240) + 'px';
+}
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const messages = document.getElementById('messages');
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
+  const parsed = text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/@(\w+)/g,'<span class="mention">@$1</span>')
+    .replace(/#([\w-]+)/g,'<span class="mention">#$1</span>')
+    .replace(/`([^`]+)`/g,'<code>$1</code>');
+
+  msgCount++;
+  const group = document.createElement('div');
+  group.className = 'message-group new-author';
+  group.innerHTML = `
+    <div class="msg-avatar" style="background:${user.color};">${user.initials}</div>
+    <div class="msg-content">
+      <div class="msg-header">
+        <span class="msg-author" style="color:${user.color};">${user.username}</span>
+        <span class="msg-time">Today at ${timeStr}</span>
+      </div>
+      <div class="msg-text">${parsed}</div>
+    </div>
+    <div class="msg-actions">
+      <button>😀</button><button>↩</button><button>✏️</button>
+      <button onclick="deleteMsg(this)">🗑️</button>
+    </div>`;
+  messages.appendChild(group);
+  input.value = '';
+  input.style.height = 'auto';
+  messages.scrollTop = messages.scrollHeight;
+
+  conversationHistory.push({ role:'user', content: text });
+  setTimeout(() => getAIReply(), 500 + Math.random()*700);
+}
+
+// ═══ AI-POWERED REPLY ═══════════════════════════════
+const BOTS = [
+  { initials:'AL', color:'#ed4245', name:'Alex',
+    personality:`You are Alex, the energetic admin of Chord Central Discord server. You're warm, enthusiastic, a bit excitable, occasionally use emoji. You remember context from the conversation. Keep replies 1-3 sentences, casual and natural like Discord chat.` },
+  { initials:'MK', color:'#faa61a', name:'Mike',
+    personality:`You are Mike, a chill laid-back member of Chord Central Discord server. You're helpful, occasionally funny, give good vibes. You remember context from the conversation. Keep replies 1-3 sentences, natural Discord chat style.` },
+  { initials:'RB', color:'#00b0f4', name:'Ryan',
+    personality:`You are Ryan, a dev-focused member of Chord Central Discord server. You're knowledgeable but conversational, occasionally mention tech tangentially. You remember context from the conversation. Keep replies 1-3 sentences, natural Discord chat style.` },
+  { initials:'JL', color:'#9b59b6', name:'Jade',
+    personality:`You are Jade, a thoughtful creative member of Chord Central Discord server. You add interesting perspectives, sometimes ask follow-up questions. You remember context from the conversation. Keep replies 1-3 sentences, natural Discord chat style.` },
+];
+
+let lastBotIndex = -1;
+async function getAIReply() {
+  // pick a different bot each time
+  let idx;
+  do { idx = Math.floor(Math.random() * BOTS.length); } while (idx === lastBotIndex && BOTS.length > 1);
+  lastBotIndex = idx;
+  const bot = BOTS[idx];
+
+  const ti = document.getElementById('typing-indicator');
+  document.getElementById('typing-text').textContent = `${bot.name} is typing...`;
+  ti.style.opacity = '1';
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: bot.personality + ` The user's display name is "${user.username}"${user.pronouns ? ', pronouns: ' + user.pronouns : ''}. Never say you're an AI or break character. Respond like a real Discord user — natural, casual, never robotic. Max 3 sentences.`,
+        messages: conversationHistory
+      })
+    });
+    const data = await res.json();
+    const reply = data?.content?.[0]?.text || smartFallback(conversationHistory[conversationHistory.length-1]?.content || '');
+    conversationHistory.push({ role:'assistant', content: reply });
+    setTimeout(() => { ti.style.opacity='0'; appendBot(bot, reply); }, 300+Math.random()*400);
+  } catch {
+    const fallback = smartFallback(conversationHistory[conversationHistory.length-1]?.content || '');
+    setTimeout(() => { ti.style.opacity='0'; appendBot(bot, fallback); }, 600);
+  }
+}
+
+function smartFallback(msg) {
+  const m = msg.toLowerCase();
+  if (/\b(hi|hey|hello|sup|yo|hiya|howdy)\b/.test(m)) return "Hey! 👋 Good to see you here!";
+  if (/\b(how are you|how r u|how's it going|hows it going|you good)\b/.test(m)) return "Doing great, thanks for asking! How about you? 😊";
+  if (/\b(bye|goodbye|cya|see ya|later|gotta go)\b/.test(m)) return "Later! 👋 Come back soon!";
+  if (/\b(thanks|thank you|thx|ty)\b/.test(m)) return "Of course! Happy to help 😄";
+  if (/\b(lol|lmao|haha|hehe|funny|😂|💀)\b/.test(m)) return "lmaooo 😂 actually";
+  if (/\b(nice|cool|awesome|sick|fire|🔥)\b/.test(m)) return "Right?? 🔥 That's what I'm saying";
+  if (/\b(what|why|how|who|where|when)\b/.test(m)) return "That's a good question actually 🤔 what made you think of that?";
+  if (/\b(agree|same|same here|feel that|mood)\b/.test(m)) return "+1, exactly my thoughts too 💯";
+  if (/\b(help|stuck|issue|problem|bug)\b/.test(m)) return "Oh no, what's going on? Tell me more and I'll try to help 👀";
+  return "Ooh interesting, say more 👀";
+}
+
+function appendBot(bot, reply) {
+  const messages = document.getElementById('messages');
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
+  const group = document.createElement('div');
+  group.className = 'message-group new-author';
+  const safeReply = reply.replace(/</g,'&lt;').replace(/\n/g,'<br>');
+  group.innerHTML = `
+    <div class="msg-avatar" style="background:${bot.color};">${bot.initials}</div>
+    <div class="msg-content">
+      <div class="msg-header">
+        <span class="msg-author" style="color:${bot.color};">${bot.name}</span>
+        <span class="msg-time">Today at ${timeStr}</span>
+      </div>
+      <div class="msg-text">${safeReply}</div>
+    </div>
+    <div class="msg-actions"><button>😀</button><button>↩</button><button>•••</button></div>`;
+  messages.appendChild(group);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function toggleReaction(el) {
+  el.classList.toggle('reacted');
+  const c = el.querySelector('.r-count');
+  c.textContent = parseInt(c.textContent) + (el.classList.contains('reacted') ? 1 : -1);
+}
+function deleteMsg(btn) {
+  const g = btn.closest('.message-group');
+  g.style.transition = 'opacity .2s, transform .2s';
+  g.style.opacity = '0'; g.style.transform = 'translateX(-8px)';
+  setTimeout(() => g.remove(), 200);
+}
+
+// Server icon clicks
+document.querySelectorAll('.server-icon').forEach(icon => {
+  icon.addEventListener('click', function() {
+    document.querySelectorAll('.server-icon').forEach(i => i.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+
+window.addEventListener('load', () => {
+  document.getElementById('messages').scrollTop = 999999;
+  // init member-you-av text node correctly
+  const mya = document.getElementById('member-you-av');
+  mya.firstChild.textContent = 'YO';
+});
+</script>
+</body>
+</html>
