@@ -1,0 +1,65 @@
+@import url('https://fonts.googleapis.com/css2?family=Aguafina+Script&family=Felipa&display=swap');
+
+/* 1. Body (center everything) */
+body {
+  margin: 0;
+  height: 100vh;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  background: #ececec; /* soft light gray */
+  color: #222;
+  font-family: "Felipa", serif;
+}
+
+/* 2. Container (main card) */
+.container {
+  background: #ffffff;
+  padding: 50px;
+  border-radius: 16px;
+  text-align: center;
+  width: 390px;
+
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  transition: 0.3s ease;
+}
+
+/* hover lift effect */
+.container:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+}
+
+/* 3. Quote text */
+.quote {
+  font-size: 24px;
+  margin-bottom: 25px;
+  color: #333;
+  line-height: 1.4;
+
+  transition: 0.3s ease;
+}
+
+/* 4. Button */
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 10px;
+
+  background: #4a4a4a;
+  color: white;
+
+  font-weight: bold;
+  letter-spacing: 0.5px;
+
+  cursor: pointer;
+  transition: 0.3s ease;
+}
+
+/* 5. Button hover */
+.btn:hover {
+  background: #000;
+  transform: scale(1.05);
+}
