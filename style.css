@@ -1,0 +1,334 @@
+/* =========================
+   RESET
+========================= */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* =========================
+   BODY
+========================= */
+body {
+    font-family: "Poppins", Arial, sans-serif;
+    background-color: #fce8f2; /* softer pink-white */
+    color: #3a3a3a; /* warm text */
+    line-height: 1.6;
+}
+
+/* =========================
+   NAVBAR
+========================= */
+nav {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    padding: 16px;
+    background-color: #f5c7da; /* soft pastel pink */
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 6px 20px rgba(255, 182, 213, 0.25);
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+}
+
+nav a {
+    color: #c2185b;
+    text-decoration: none;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: color 0.25s ease;
+}
+
+nav a:hover {
+    color: #ff4da6;
+}
+
+/* =========================
+   HERO / BANNER
+========================= */
+header.hero {
+    width: 100%;
+    height: 400px; /* higher so it looks prominent */
+    overflow: hidden;
+    position: relative;
+}
+
+header.hero img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.hero-text h1 {
+    font-size: 3rem;
+    margin-bottom: 12px;
+    text-shadow: 1px 1px 4px rgba(0,0,0,0.3);
+}
+
+/* =========================
+   SECTIONS
+========================= */
+section {
+    max-width: 1000px;
+    margin: 70px auto;
+    padding: 50px 30px;
+    background-color: #ffffff;
+    border-radius: 25px;
+    box-shadow: 0 12px 30px rgba(255, 182, 213, 0.25);
+    text-align: center;
+    transition: transform 0.25s ease;
+}
+
+section:hover {
+    transform: translateY(-3px);
+}
+
+section h2 {
+    font-size: 2.2rem;
+    margin-bottom: 18px;
+    color: #c2185b;
+    border-bottom: 3px solid #ffb3d9;
+    display: inline-block;
+    padding-bottom: 4px;
+}
+
+section p {
+    color: #7a3f5c;
+    font-size: 1rem;
+    margin-bottom: 20px;
+}
+
+.text-link {
+    color: #ff5fa2;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.25s ease;
+}
+
+.text-link:hover {
+    color: #ff2f92;
+    text-decoration: underline;
+}
+
+/* =========================
+   NAV DROPDOWN FOR BOOK CATEGORIES
+========================= */
+nav .dropdown {
+    position: relative;
+}
+
+nav .dropdown-content {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background-color: #fce8f2;
+    border-radius: 12px;
+    box-shadow: 0 6px 15px rgba(255, 182, 213, 0.25);
+    flex-direction: column;
+    min-width: 160px;
+    z-index: 200;
+}
+
+nav .dropdown-content a {
+    color: #c2185b;
+    padding: 10px 16px;
+    text-decoration: none;
+    display: block;
+}
+
+nav .dropdown-content a:hover {
+    background-color: #ffeaf4;
+    color: #ff4da6;
+}
+
+nav .dropdown:hover .dropdown-content {
+    display: flex;
+}
+
+/* Smooth scroll to section */
+html {
+    scroll-behavior: smooth;
+}
+
+
+/* =========================
+   BOOK PREVIEW GRID (Homepage)
+========================= */
+.book-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 40px;
+    margin-top: 30px;
+    justify-items: center;
+}
+
+.book-preview {
+    background-color: #ffeaf4;
+    border-radius: 20px;
+    padding: 20px;
+    width: 260px;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(255, 105, 180, 0.2);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.book-preview:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 18px 40px rgba(255, 105, 180, 0.35);
+}
+
+.book-preview img {
+    width: 100%;
+    height: 280px;
+    object-fit: cover;
+    border-radius: 12px;
+    margin-bottom: 12px;
+}
+
+.book-preview h3 {
+    color: #c2185b;
+    margin-bottom: 8px;
+    font-size: 1.15rem;
+}
+
+.book-preview p {
+    color: #7a3f5c;
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+}
+
+/* =========================
+   EXPLORE GRID (E-Books + Free Downloads)
+========================= */
+.explore {
+    background-color: #ffe4f2;
+    padding: 60px 24px;
+    border-radius: 25px;
+}
+
+.explore-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 30px;
+    margin-top: 30px;
+    justify-items: center;
+}
+
+.explore-card {
+    background-color: #ffffff;
+    padding: 28px 20px;
+    border-radius: 20px;
+    box-shadow: 0 10px 25px rgba(255, 182, 213, 0.2);
+    text-align: center;
+    transition: transform 0.25s ease;
+}
+
+.explore-card.light {
+    background-color: #fff0f8;
+}
+
+.explore-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(255, 105, 180, 0.25);
+}
+
+.explore-card h3 {
+    color: #c2185b;
+    margin-bottom: 10px;
+}
+
+.explore-card p {
+    font-size: 0.95rem;
+    color: #7a3f5c;
+    margin-bottom: 14px;
+}
+
+.explore-card a {
+    color: #ff5fa2;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.explore-card a:hover {
+    color: #ff2f92;
+    text-decoration: underline;
+}
+
+/* =========================
+   FULL BOOKS PAGE GRID
+========================= */
+.books-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 50px;
+    margin-top: 40px;
+    justify-items: center;
+}
+
+.book-card {
+    background: linear-gradient(145deg, #fff0f8, #ffe4f2);
+    border-radius: 25px;
+    padding: 25px;
+    width: 280px;
+    text-align: center;
+    box-shadow: 0 15px 35px rgba(255, 105, 180, 0.18);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.book-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 25px 50px rgba(255, 105, 180, 0.35);
+}
+
+.book-card img {
+    width: 100%;
+    height: 320px;
+    object-fit: cover;
+    border-radius: 15px;
+    margin-bottom: 18px;
+}
+
+.book-card h3 {
+    color: #c2185b;
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+}
+
+.book-card p {
+    font-size: 0.95rem;
+    color: #7a3f5c;
+    margin-bottom: 15px;
+}
+
+.book-card .book-btn {
+    display: inline-block;
+    padding: 10px 18px;
+    background-color: #ff5fa2;
+    color: white;
+    border-radius: 20px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: background 0.25s ease;
+}
+
+.book-card .book-btn:hover {
+    background-color: #ff2f92;
+}
+
+/* =========================
+   FOOTER
+========================= */
+footer {
+    text-align: center;
+    padding: 40px 20px;
+    background-color: #e285b3;
+    color: #000000;
+    font-size: 0.9rem;
+    border-top-left-radius: 15px;
+    border-top-right-radius: 15px;
+}
