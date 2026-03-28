@@ -1,0 +1,280 @@
+/* =========================
+   PAGE BASE
+========================= */
+
+body{
+    margin:0;
+    font-family:Arial, Helvetica, sans-serif;
+    background:#f4f6fb;
+    color:#1e2a38;
+}
+
+
+/* =========================
+   MAIN PAGE CONTAINER
+========================= */
+
+.evaluation-page{
+    max-width:800px;
+    margin:auto;
+    padding:60px 40px;
+}
+
+
+/* =========================
+   BACK BUTTON
+========================= */
+
+.back-btn{
+    text-decoration:none;
+    color:#0d3b66;
+    font-weight:600;
+    font-size:14px;
+}
+
+.back-btn:hover{
+    text-decoration:underline;
+}
+
+
+/* =========================
+   PAGE TITLE
+========================= */
+
+h1{
+    margin-top:20px;
+    margin-bottom:40px;
+    font-size:34px;
+}
+
+
+/* =========================
+   FORM CARD
+========================= */
+
+.evaluation-form{
+
+    background:white;
+
+    padding:40px;
+
+    border-radius:10px;
+
+    box-shadow:0 4px 15px rgba(0,0,0,0.05);
+
+}
+
+
+/* =========================
+   TEACHER SELECT
+========================= */
+
+.teacher-select{
+    margin-bottom:35px;
+}
+
+.teacher-select label{
+    display:block;
+    margin-bottom:8px;
+    font-weight:600;
+}
+
+.teacher-select select{
+
+    width:100%;
+
+    padding:10px;
+
+    border-radius:6px;
+
+    border:1px solid #d6dce6;
+
+    font-size:14px;
+
+}
+
+
+/* =========================
+   RATING SECTIONS
+========================= */
+
+.rating{
+    margin-bottom:30px;
+}
+
+.rating p{
+    margin-bottom:10px;
+    font-weight:600;
+}
+
+
+/* =========================
+   STARS
+========================= */
+
+.stars{
+    font-size:22px;
+    color:#c5cbd6;
+    cursor:pointer;
+}
+
+.stars span{
+    margin-right:6px;
+    transition:0.2s;
+}
+
+.stars span:hover{
+    color:#f7b500;
+}
+
+
+/* =========================
+   COMMENT BOX
+========================= */
+
+.comment-box{
+    margin-top:30px;
+}
+
+.comment-box label{
+    display:block;
+    margin-bottom:8px;
+    font-weight:600;
+}
+
+.comment-box textarea{
+
+    width:100%;
+
+    height:100px;
+
+    padding:12px;
+
+    border-radius:6px;
+
+    border:1px solid #d6dce6;
+
+    resize:none;
+
+    font-family:Arial, Helvetica, sans-serif;
+
+}
+
+
+/* =========================
+   SUBMIT BUTTON
+========================= */
+
+.submit-btn{
+
+    margin-top:25px;
+
+    padding:10px 18px;
+
+    background:#0d3b66;
+
+    color:white;
+
+    border:none;
+
+    border-radius:6px;
+
+    cursor:pointer;
+
+    font-size:14px;
+
+    transition:0.2s;
+
+}
+
+.submit-btn:hover{
+    background:#155a96;
+}
+
+a.popup-close{
+    text-decoration: none;
+}
+
+/* =========================
+   SUBMIT POPUP
+========================= */
+
+.submit-popup{
+
+    position:fixed;
+
+    top:0;
+    left:0;
+
+    width:100%;
+    height:100%;
+
+    background:rgba(0,0,0,0.4);
+
+    display:flex;
+
+    justify-content:center;
+    align-items:center;
+
+    visibility:hidden;
+    opacity:0;
+
+    transition:0.3s;
+
+}
+
+
+/* popup box */
+
+.popup-card{
+
+    background:white;
+
+    padding:35px;
+
+    border-radius:10px;
+
+    text-align:center;
+
+    width:300px;
+
+    box-shadow:0 6px 20px rgba(0,0,0,0.15);
+
+}
+
+
+/* popup button */
+
+.popup-close{
+
+    margin-top:20px;
+
+    padding:8px 16px;
+
+    background:#0d3b66;
+
+    color:white;
+
+    border:none;
+
+    border-radius:6px;
+
+    cursor:pointer;
+
+}
+
+.popup-close:hover{
+
+    background:#155a96;
+
+}
+
+
+/* active popup */
+
+.submit-popup.active{
+
+    visibility:visible;
+    opacity:1;
+
+}

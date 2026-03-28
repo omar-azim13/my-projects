@@ -1,0 +1,93 @@
+/* ===== Page Reset ===== */
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+/* ===== Body Styling ===== */
+body{
+    font-family: Arial, Helvetica, sans-serif;
+
+    height:100vh;
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    /* background placeholder (replace later) */
+    background-image: url("../images/school-background.jpg");
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+/* ===== Login Box ===== */
+.login-container{
+
+    width:300px;
+
+    padding:40px;
+
+    border-radius:15px;
+
+    padding: 65px 45px;
+
+    background-color: rgba(255, 255, 255, 0.5);
+
+    backdrop-filter: blur(10px);
+
+    text-align:center;
+
+    color:white;
+}
+
+/* ===== Title ===== */
+.login-container h2{
+    margin-bottom:30px;
+    color: #155a96;
+}
+
+/* ===== Inputs ===== */
+#login-form input{
+
+    width:100%;
+
+    padding:12px;
+
+    margin-bottom:15px;
+
+    border: 1px solid grey;
+
+    border-radius:8px;
+
+    outline:none;
+}
+
+/* ===== Button ===== */
+#login-form button{
+
+    width:100%;
+
+    padding:12px;
+
+    border:none;
+
+    border-radius:8px;
+
+    background:#155a96;
+
+    color:white;
+
+    font-weight:bold;
+
+    cursor:pointer;
+
+    transition:0.25s;
+}
+
+/* ===== Button Hover ===== */
+#login-form button:hover{
+
+    background:#1d6fb8;
+}

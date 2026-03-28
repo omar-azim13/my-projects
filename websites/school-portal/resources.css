@@ -1,0 +1,270 @@
+/* ===== PAGE ===== */
+
+body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f4f6fb;
+    color: #1e2a38;
+}
+
+.resources-page {
+    padding: 60px 80px;
+}
+
+
+/* ===== BACK BUTTON ===== */
+
+.back-btn {
+    text-decoration: none;
+    color: #0d3b66;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.back-btn:hover {
+    text-decoration: underline;
+}
+
+
+/* ===== PAGE TITLES ===== */
+
+h1 {
+    margin-top: 20px;
+    margin-bottom: 30px;
+    font-size: 34px;
+}
+
+h2 {
+    font-size: 24px;
+}
+
+h3 {
+    margin-bottom: 10px;
+}
+
+
+/* ===== SUBJECT GRID ===== */
+
+.subject-select-screen {
+    margin-top: 30px;
+}
+
+.subject-grid {
+
+    display: grid;
+
+    grid-template-columns: repeat(3, 1fr);
+
+    gap: 20px;
+
+    margin-top: 30px;
+
+}
+
+
+/* ===== SUBJECT BUTTONS ===== */
+
+.subject-card {
+
+    padding: 22px;
+    border: none;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    border-radius: 10px;
+    font-size: 16px;
+
+    background: #e8edf5;
+
+    cursor: pointer;
+
+    position: relative;
+    /* important for ripple */
+    overflow: hidden;
+    /* keeps ripple inside button */
+
+    transition: all 0.2s ease;
+
+}
+
+.subject-card:hover {
+
+    background: #d9e3f1;
+
+    transform: translateY(-3px);
+
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+
+}
+
+.subject-card:active{
+transform:scale(0.96);
+}
+
+
+/* ===== SUBJECT RESOURCE PAGE ===== */
+
+.subject-resource-screen {
+    margin-top: 50px;
+}
+
+.subject-resource-screen {
+    display: none;
+}
+
+.resource-row:hover{
+background:#e7ebf2;
+transition: ease-in-out 0.3s;
+}
+
+
+/* ===== SUBJECT HEADER ===== */
+
+.subject-header {
+    margin-bottom: 40px;
+}
+
+.teacher-name {
+    margin-top: 6px;
+    color: #6b7785;
+    font-size: 14px;
+}
+
+
+/* ===== BACK BUTTON ===== */
+
+.back-to-subjects {
+
+    border: none;
+
+    background: none;
+
+    color: #0d3b66;
+
+    font-weight: 600;
+
+    cursor: pointer;
+
+    margin-bottom: 25px;
+
+}
+
+.back-to-subjects:hover {
+    text-decoration: underline;
+}
+
+.subject-select-screen,
+.subject-resource-screen {
+    transition: opacity 0.25s ease;
+}
+
+
+/* ===== RESOURCE SECTIONS ===== */
+
+.resource-section {
+    margin-bottom: 40px;
+}
+
+.resource-section h3 {
+    margin-bottom: 15px;
+}
+
+
+/* ===== RESOURCE ROW ===== */
+
+.resource-row {
+
+    display: flex;
+
+    align-items: center;
+
+    padding: 14px 0;
+
+    border-bottom: 1px solid #e6e6e6;
+
+}
+
+
+/* file name */
+
+.resource-row span:first-child {
+
+    flex: 2;
+
+}
+
+
+/* date */
+
+.resource-date {
+
+    flex: 1;
+
+    color: #6b7785;
+
+    font-size: 14px;
+
+}
+
+
+/* ===== DOWNLOAD BUTTON ===== */
+
+.download-btn {
+
+    background: #0d3b66;
+
+    color: white;
+
+    padding: 6px 14px;
+
+    border-radius: 6px;
+
+    text-decoration: none;
+
+    font-size: 14px;
+
+    transition: 0.2s;
+
+}
+
+.download-btn:hover {
+
+    background: #155a96;
+
+}
+
+
+/* ===== EMPTY MESSAGE ===== */
+
+.empty-message {
+
+    color: #7a7a7a;
+
+    font-style: italic;
+
+    margin-top: 10px;
+
+}
+
+
+.ripple {
+
+    position: absolute;
+
+    border-radius: 50%;
+
+    transform: scale(0);
+
+    animation: ripple-animation 600ms linear;
+
+    background: rgba(255, 255, 255, 0.5);
+
+}
+
+@keyframes ripple-animation {
+
+    to {
+        transform: scale(4);
+        opacity: 0;
+    }
+
+}
