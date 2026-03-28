@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<!--
+  ╔══════════════════════════════════════════════════════════════════════╗
+  ║   VOID SECTOR — Browser FPS using Raycasting (no 3D libraries)      ║
+  ║                                                                      ║
+  ║   TECHNIQUE: Raycasting (same as Wolfenstein 3D, 1992)               ║
+  ║   For every vertical screen column, cast one ray from the player.    ║
+  ║   Measure how far it travels before hitting a wall.                  ║
+  ║   Closer wall = taller column drawn on screen.                       ║
+  ║   Result: convincing pseudo-3D from a 2D grid map.                   ║
+  ╚══════════════════════════════════════════════════════════════════════╝
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VOID SECTOR</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+  <style>
+    /* ═══════════════════════════════════
+       ROOT VARIABLES & RESET
+    ═══════════════════════════════════ */
+    :root {
+      --red:    #ff2244;
+      --cyan:   #00eeff;
+      --yellow: #ffe600;
+      --green:  #00ff88;
+      --dark:   #080810;
+      --mid:    #10101e;
+      --ui:     'Orbitron', monospace;
+      --mono:   'Share Tech Mono', monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--dark);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+      font-family: var(--ui);
+      color: #fff;
+      user-select: none;
+    }
+
+    /* ═══════════════════════════════════
+       TITLE BAR
+    ═══════════════════════════════════ */
+    #title-bar {
+      font-size: 11px;
+      letter-spacing: 4px;
+      color: rgba(0,238,255,0.4);
+      margin-bottom: 8px;
+    }
+    #title-bar strong {
+      font-size: 18px;
+      font-weight: 900;
+      color: var(--cyan);
+      text-shadow: 0 0 20px var(--cyan);
+    }
+
+    /* ═══════════════════════════════════
+       GAME CONTAINER
+    ═══════════════════════════════════ */
+    #game-container {
+      position: relative;
+      width: 800px;
+      height: 500px;
+      border: 2px solid rgba(0,238,255,0.3);
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow:
+        0 0 40px rgba(0,238,255,0.15),
+        inset 0 0 80px rgba(0,0,10,0.8);
+      cursor: crosshair;
+    }
+
+    /* ═══════════════════════════════════
+       MAIN CANVAS — raycaster draws here
+    ═══════════════════════════════════ */
+    #canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated; /* Keep the retro pixel look */
+    }
+
+    /* Scanline overlay */
+    #game-container::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        0deg, transparent, transparent 2px,
+        rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px
+      );
+      z-index: 50;
+    }
+
+    /* ═══════════════════════════════════
+       HUD OVERLAY (health, ammo, kills)
+    ═══════════════════════════════════ */
+    #hud {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 60px;
+      background: linear-gradient(0deg, rgba(0,0,0,0.85) 0%, transparent 100%);
+      display: flex;
+      align-items: flex-end;
+      padding: 0 20px 12px;
+      justify-content: space-between;
+      z-index: 30;
+      pointer-events: none;
+    }
+
+    .hud-block { display: flex; flex-direction: column; gap: 2px; }
+    .hud-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: rgba(255,255,255,0.4);
+      text-transform: uppercase;
+    }
+    .hud-value {
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 1px;
+    }
+    #hud-hp    { color: var(--green); }
+    #hud-ammo  { color: var(--yellow); }
+    #hud-kills { color: var(--red); }
+
+    /* Health bar */
+    #hp-bar-wrap {
+      width: 140px;
+      height: 5px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    #hp-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--green), #88ff44);
+      border-radius: 3px;
+      transition: width 0.3s, background 0.3s;
+    }
+
+    /* ═══════════════════════════════════
+       CROSSHAIR
+    ═══════════════════════════════════ */
+    #crosshair {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 20px; height: 20px;
+      z-index: 40;
+      pointer-events: none;
+      transition: transform 0.05s;
+    }
+    #crosshair::before, #crosshair::after {
+      content: '';
+      position: absolute;
+      background: rgba(255,255,255,0.85);
+      border-radius: 1px;
+    }
+    /* Horizontal bar */
+    #crosshair::before { width: 14px; height: 2px; top: 9px; left: 3px; }
+    /* Vertical bar */
+    #crosshair::after  { width: 2px; height: 14px; top: 3px; left: 9px; }
+
+    /* Crosshair expands on shoot */
+    #crosshair.firing {
+      transform: translate(-50%, -50%) scale(1.6);
+    }
+    /* Crosshair turns red on enemy hit */
+    #crosshair.hit::before,
+    #crosshair.hit::after { background: var(--red); }
+
+    /* ═══════════════════════════════════
+       MINIMAP
+    ═══════════════════════════════════ */
+    #minimap-canvas {
+      position: absolute;
+      top: 12px; right: 12px;
+      width: 120px; height: 120px;
+      border: 1px solid rgba(0,238,255,0.25);
+      border-radius: 3px;
+      opacity: 0.85;
+      z-index: 35;
+    }
+
+    /* ═══════════════════════════════════
+       MUZZLE FLASH — fullscreen flash on shoot
+    ═══════════════════════════════════ */
+    #muzzle-flash {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 60%, rgba(255,200,50,0.18) 0%, transparent 70%);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 20;
+      transition: opacity 0.05s;
+    }
+
+    /* ═══════════════════════════════════
+       DAMAGE VIGNETTE (red pulse when hit)
+    ═══════════════════════════════════ */
+    #damage-vignette {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at center, transparent 50%, rgba(255,0,0,0.5) 100%);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 25;
+      transition: opacity 0.15s;
+    }
+
+    /* ═══════════════════════════════════
+       HIT MARKER — appears briefly on kill/hit
+    ═══════════════════════════════════ */
+    #hit-marker {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 24px; height: 24px;
+      pointer-events: none;
+      z-index: 45;
+      opacity: 0;
+    }
+    #hit-marker::before, #hit-marker::after {
+      content: '';
+      position: absolute;
+      background: var(--red);
+    }
+    #hit-marker::before { width: 6px; height: 2px; top: 11px; left: 0; box-shadow: 18px 0 0 var(--red); }
+    #hit-marker::after  { width: 2px; height: 6px; left: 11px; top: 0; box-shadow: 0 18px 0 var(--red); }
+
+    /* ═══════════════════════════════════
+       SCREEN OVERLAYS (start, gameover, win)
+    ═══════════════════════════════════ */
+    .screen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(8,8,16,0.92);
+      backdrop-filter: blur(6px);
+      z-index: 100;
+      gap: 18px;
+      animation: fadein 0.4s ease;
+    }
+    @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+
+    .screen-title {
+      font-size: 52px;
+      font-weight: 900;
+      letter-spacing: 6px;
+    }
+    .cyan-glow  { color: var(--cyan);   text-shadow: 0 0 30px var(--cyan); }
+    .red-glow   { color: var(--red);    text-shadow: 0 0 30px var(--red); }
+    .green-glow { color: var(--green);  text-shadow: 0 0 30px var(--green); }
+
+    .screen-sub {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: rgba(255,255,255,0.5);
+      text-align: center;
+      line-height: 2;
+      max-width: 380px;
+    }
+    .screen-sub span { color: var(--cyan); }
+
+    .btn {
+      padding: 12px 36px;
+      font-family: var(--ui);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      cursor: pointer;
+      border: none;
+      border-radius: 3px;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .btn-cyan {
+      background: var(--cyan);
+      color: #000;
+      box-shadow: 0 0 20px rgba(0,238,255,0.4);
+    }
+    .btn-cyan:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 35px rgba(0,238,255,0.7);
+    }
+    .btn-red {
+      background: var(--red);
+      color: #fff;
+      box-shadow: 0 0 20px rgba(255,34,68,0.4);
+    }
+    .btn-red:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 35px rgba(255,34,68,0.7);
+    }
+
+    #screen-start   { }
+    #screen-gameover { display: none; }
+    #screen-win      { display: none; }
+
+    /* Kill feed */
+    #killfeed {
+      position: absolute;
+      top: 12px; left: 12px;
+      font-family: var(--mono);
+      font-size: 11px;
+      z-index: 35;
+      pointer-events: none;
+    }
+    .kf-line {
+      color: var(--red);
+      text-shadow: 0 0 8px rgba(255,34,68,0.6);
+      animation: kf-fade 2.5s ease forwards;
+    }
+    @keyframes kf-fade {
+      0%   { opacity: 1; }
+      70%  { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    /* Pointer lock message */
+    #lock-msg {
+      position: absolute;
+      bottom: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: var(--mono);
+      font-size: 11px;
+      color: rgba(255,255,255,0.35);
+      letter-spacing: 2px;
+      pointer-events: none;
+      z-index: 35;
+    }
+  </style>
+</head>
+<body>
+
+<div id="title-bar"><strong>VOID SECTOR</strong> &nbsp;///&nbsp; RAYCASTER FPS</div>
+
+<div id="game-container">
+
+  <!-- Main 3D view -->
+  <canvas id="canvas" width="800" height="500"></canvas>
+
+  <!-- Minimap -->
+  <canvas id="minimap-canvas" width="120" height="120"></canvas>
+
+  <!-- Crosshair -->
+  <div id="crosshair"></div>
+
+  <!-- Hit marker (diagonal cross, appears on hit) -->
+  <div id="hit-marker"></div>
+
+  <!-- Effects -->
+  <div id="muzzle-flash"></div>
+  <div id="damage-vignette"></div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-block">
+      <span class="hud-label">Health</span>
+      <span class="hud-value" id="hud-hp">100</span>
+      <div id="hp-bar-wrap"><div id="hp-bar"></div></div>
+    </div>
+    <div class="hud-block" style="align-items:center;">
+      <span class="hud-label">Ammo</span>
+      <span class="hud-value" id="hud-ammo">30</span>
+    </div>
+    <div class="hud-block" style="align-items:flex-end;">
+      <span class="hud-label">Kills</span>
+      <span class="hud-value" id="hud-kills">0</span>
+    </div>
+  </div>
+
+  <!-- Kill feed -->
+  <div id="killfeed"></div>
+
+  <!-- Pointer lock hint -->
+  <div id="lock-msg">CLICK TO CAPTURE MOUSE</div>
+
+  <!-- SCREEN: Start -->
+  <div class="screen" id="screen-start">
+    <div class="screen-title cyan-glow">VOID SECTOR</div>
+    <div class="screen-sub">
+      <span>WASD</span> — Move &nbsp;|&nbsp; <span>Mouse</span> — Look<br>
+      <span>Click / Left Mouse</span> — Shoot<br>
+      <span>R</span> — Reload &nbsp;|&nbsp; <span>ESC</span> — Unlock Mouse<br><br>
+      Eliminate all enemies to win.
+    </div>
+    <button class="btn btn-cyan" onclick="startGame()">▶ DEPLOY</button>
+  </div>
+
+  <!-- SCREEN: Game Over -->
+  <div class="screen" id="screen-gameover">
+    <div class="screen-title red-glow">FLATLINED</div>
+    <div class="screen-sub" id="go-stats">You were eliminated.</div>
+    <button class="btn btn-red" onclick="restartGame()">↺ REDEPLOY</button>
+  </div>
+
+  <!-- SCREEN: Win -->
+  <div class="screen" id="screen-win">
+    <div class="screen-title green-glow">SECTOR CLEAR</div>
+    <div class="screen-sub" id="win-stats">All enemies neutralized.</div>
+    <button class="btn btn-cyan" onclick="restartGame()">▶ PLAY AGAIN</button>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════
+//  VOID SECTOR — Raycasting FPS Engine
+//
+//  HOW RAYCASTING WORKS:
+//  The screen is divided into vertical columns (one per pixel of width).
+//  For each column, we cast a ray from the player at a slightly different
+//  angle (spanning the full FOV). We step the ray forward in small
+//  increments until it hits a wall cell in our 2D grid map.
+//  The distance to that wall determines the height of the wall slice
+//  drawn in that column: far away = short slice, nearby = tall slice.
+//  This creates the illusion of 3D perspective from a flat 2D map.
+// ══════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────
+const W = 800;            // Canvas pixel width
+const H = 500;            // Canvas pixel height
+const HALF_H = H / 2;
+const FOV = Math.PI / 3; // 60° field of view in radians
+const NUM_RAYS = W;       // One ray per screen column = sharpest quality
+const RAY_STEP = 0.02;    // Step size when marching ray (smaller = more accurate but slower)
+const MOVE_SPEED = 0.05;  // Player movement speed per frame
+const ROT_SPEED = 0.002;  // Mouse sensitivity (radians per pixel)
+const WALL_HEIGHT_SCALE = 300; // Controls how tall walls appear (tune for FOV)
+const ENEMY_SPEED = 0.012;
+const PLAYER_RADIUS = 0.25; // Collision radius in map units
+const MAX_HP = 100;
+const MAX_AMMO = 30;
+const RELOAD_TIME = 1800; // ms
+
+// ─────────────────────────────────────────────
+// MAP DEFINITION
+// 1 = solid wall, 0 = empty floor
+// Each number can also be a color index for wall variety
+// ─────────────────────────────────────────────
+// prettier-ignore
+const MAP_DATA = [
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,1,1,0,1,0,0,1,1,1,0,0,1,1,1,0,0,1],
+  [1,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,1],
+  [1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,1],
+  [1,0,0,1,1,0,1,1,1,0,0,0,1,1,1,0,1,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,1],
+  [1,0,0,1,0,0,1,0,0,1,0,1,0,0,1,0,0,1,0,1],
+  [1,0,0,1,0,0,1,0,0,0,0,0,0,0,1,0,0,1,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,0,0,0,0,1,1,0,0,1,1,1,0,0,1,1,0,0,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+];
+const MAP_ROWS = MAP_DATA.length;    // 16
+const MAP_COLS = MAP_DATA[0].length; // 20
+
+// Helper: is cell (col, row) a wall?
+function isWall(x, y) {
+  const col = Math.floor(x);
+  const row = Math.floor(y);
+  if (col < 0 || col >= MAP_COLS || row < 0 || row >= MAP_ROWS) return true;
+  return MAP_DATA[row][col] !== 0;
+}
+
+// ─────────────────────────────────────────────
+// GAME STATE
+// ─────────────────────────────────────────────
+let player = {};
+let enemies = [];
+let gameRunning = false;
+let kills = 0;
+let ammo = MAX_AMMO;
+let hp = MAX_HP;
+let reloading = false;
+let reloadTimer = null;
+let frameId = null;
+let lastTime = 0;
+
+// Mouse input accumulation
+let mouseX = 0;
+
+// Keyboard state
+const keys = {};
+
+// ─────────────────────────────────────────────
+// DOM REFERENCES
+// ─────────────────────────────────────────────
+const canvas      = document.getElementById('canvas');
+const ctx         = canvas.getContext('2d');
+const mmCanvas    = document.getElementById('minimap-canvas');
+const mmCtx       = mmCanvas.getContext('2d');
+const crosshair   = document.getElementById('crosshair');
+const hitMarker   = document.getElementById('hit-marker');
+const muzzleFlash = document.getElementById('muzzle-flash');
+const damageVig   = document.getElementById('damage-vignette');
+const hpEl        = document.getElementById('hud-hp');
+const hpBar       = document.getElementById('hp-bar');
+const ammoEl      = document.getElementById('hud-ammo');
+const killsEl     = document.getElementById('hud-kills');
+const killfeed    = document.getElementById('killfeed');
+const lockMsg     = document.getElementById('lock-msg');
+
+// ─────────────────────────────────────────────
+// WEB AUDIO — programmatic sound effects
+// ─────────────────────────────────────────────
+let audioCtx = null;
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+// General tone player
+function playTone(freq, dur, type = 'square', vol = 0.15, detune = 0) {
+  try {
+    const a = getAudio();
+    const osc = a.createOscillator();
+    const gain = a.createGain();
+    osc.connect(gain); gain.connect(a.destination);
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, a.currentTime);
+    osc.detune.setValueAtTime(detune, a.currentTime);
+    gain.gain.setValueAtTime(vol, a.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur);
+    osc.start(); osc.stop(a.currentTime + dur);
+  } catch(e){}
+}
+
+const SFX = {
+  shoot:  () => { playTone(180, 0.06, 'sawtooth', 0.2); playTone(90, 0.1, 'sine', 0.12); },
+  hit:    () => { playTone(600, 0.05, 'square', 0.1); playTone(300, 0.08, 'sawtooth', 0.08); },
+  kill:   () => { [500,400,300].forEach((f,i)=>setTimeout(()=>playTone(f,0.1,'sawtooth',0.12),i*60)); },
+  hurt:   () => { playTone(150, 0.15, 'sawtooth', 0.25); },
+  empty:  () => { playTone(220, 0.08, 'square', 0.1); },
+  reload: () => { playTone(400, 0.1, 'sine', 0.08); setTimeout(()=>playTone(600,0.1,'sine',0.1),200); },
+  die:    () => { [300,250,200,150,100].forEach((f,i)=>setTimeout(()=>playTone(f,0.12,'sawtooth',0.2),i*80)); },
+  step:   () => { playTone(60,0.04,'sine',0.04); },
+};
+
+// ─────────────────────────────────────────────
+// INIT GAME STATE
+// ─────────────────────────────────────────────
+function initGame() {
+  player = {
+    x:   2.5,    // World position (map units)
+    y:   2.5,
+    angle: 0,    // Looking direction in radians (0 = east/right)
+    stepTimer: 0,
+  };
+
+  // Define enemies: world x, y, hp, alive, patrol state
+  enemies = [
+    { x: 5.5,  y: 5.5,  hp: 3, alive: true, dir: 0, patrol: true, patrolAngle: 0 },
+    { x: 13.5, y: 2.5,  hp: 3, alive: true, dir: 1, patrol: true, patrolAngle: Math.PI/2 },
+    { x: 17.5, y: 7.5,  hp: 3, alive: true, dir: 0, patrol: true, patrolAngle: Math.PI },
+    { x: 4.5,  y: 12.5, hp: 3, alive: true, dir: 1, patrol: true, patrolAngle: 3*Math.PI/2 },
+    { x: 10.5, y: 10.5, hp: 3, alive: true, dir: 0, patrol: true, patrolAngle: 0 },
+    { x: 16.5, y: 13.5, hp: 3, alive: true, dir: 1, patrol: true, patrolAngle: Math.PI },
+  ];
+
+  kills = 0; hp = MAX_HP; ammo = MAX_AMMO;
+  reloading = false;
+  updateHUD();
+}
+
+// ─────────────────────────────────────────────
+// RAYCASTER — the heart of the renderer
+//
+// For each column x (0 to W-1):
+//  1. Compute the ray's angle based on player angle and FOV
+//  2. March the ray forward in small steps
+//  3. Stop when we hit a wall cell
+//  4. Calculate distance (corrected for fisheye effect)
+//  5. Calculate wall slice height from distance
+//  6. Draw ceiling, wall slice, floor
+// ─────────────────────────────────────────────
+function castRays() {
+  // We'll build a depth buffer: for each column, how far is the wall?
+  // This is needed to know if enemies are behind walls.
+  const depthBuffer = new Float32Array(W);
+
+  for (let col = 0; col < NUM_RAYS; col++) {
+    // Map column (0..W) to angle offset from -FOV/2 to +FOV/2
+    const rayAngle = player.angle - FOV / 2 + (col / NUM_RAYS) * FOV;
+
+    const rayDirX = Math.cos(rayAngle);
+    const rayDirY = Math.sin(rayAngle);
+
+    let dist = 0;
+    let hit = false;
+
+    // March the ray forward until it hits a wall
+    while (!hit && dist < 20) {
+      dist += RAY_STEP;
+      const testX = player.x + rayDirX * dist;
+      const testY = player.y + rayDirY * dist;
+      if (isWall(testX, testY)) {
+        hit = true;
+      }
+    }
+
+    // Fisheye correction:
+    // Without this, walls curve at edges of screen.
+    // We project the ray onto the plane perpendicular to player's view direction.
+    const correctedDist = dist * Math.cos(rayAngle - player.angle);
+    depthBuffer[col] = correctedDist;
+
+    // Wall slice height: closer = taller
+    const wallH = Math.min(H, WALL_HEIGHT_SCALE / correctedDist);
+    const wallTop    = HALF_H - wallH / 2;
+    const wallBottom = HALF_H + wallH / 2;
+
+    // ── CEILING ──
+    // Gradient from dark near-center to black at top
+    const ceilGrad = ctx.createLinearGradient(0, 0, 0, wallTop);
+    ceilGrad.addColorStop(0, '#04040a');
+    ceilGrad.addColorStop(1, '#0d0d20');
+    ctx.fillStyle = ceilGrad;
+    ctx.fillRect(col, 0, 1, wallTop);
+
+    // ── WALL SLICE ──
+    // Color varies by distance for depth shading
+    const shade = Math.max(0, 1 - correctedDist / 12);
+    // Alternate wall color based on which cell type was hit (for visual variety)
+    const hitX = player.x + rayDirX * dist;
+    const hitY = player.y + rayDirY * dist;
+    const cellType = (MAP_DATA[Math.floor(hitY)] || [])[Math.floor(hitX)] || 1;
+
+    // Base colors for wall types
+    let r, g, b;
+    if (cellType === 1) { r = 40; g = 80; b = 140; }  // Blue-grey tech wall
+    else                { r = 80; g = 40; b = 120; }  // Purple accent
+
+    ctx.fillStyle = `rgb(${Math.floor(r*shade)},${Math.floor(g*shade)},${Math.floor(b*shade)})`;
+    ctx.fillRect(col, wallTop, 1, wallH);
+
+    // Wall top edge glow (neon cyan strip)
+    if (wallTop > 0 && wallTop < H) {
+      ctx.fillStyle = `rgba(0,238,255,${shade * 0.6})`;
+      ctx.fillRect(col, wallTop, 1, 2);
+    }
+
+    // ── FLOOR ──
+    // Gradient from near-grey near player to dark far away
+    const floorGrad = ctx.createLinearGradient(0, wallBottom, 0, H);
+    floorGrad.addColorStop(0, '#141420');
+    floorGrad.addColorStop(1, '#060608');
+    ctx.fillStyle = floorGrad;
+    ctx.fillRect(col, wallBottom, 1, H - wallBottom);
+  }
+
+  return depthBuffer;
+}
+
+// ─────────────────────────────────────────────
+// RENDER ENEMIES (billboard sprites)
+//
+// Each enemy is drawn as a 2D rectangle (sprite) that always
+// faces the camera — this is the "billboard" technique.
+// We compute the enemy's position relative to the camera,
+// project it onto the screen, and only draw it if it's in
+// front of the player AND not behind a wall (depth buffer check).
+// ─────────────────────────────────────────────
+function renderEnemies(depthBuffer) {
+  enemies.forEach(en => {
+    if (!en.alive) return;
+
+    // Vector from player to enemy
+    const dx = en.x - player.x;
+    const dy = en.y - player.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+
+    // Angle of enemy relative to player's view
+    const enemyAngle = Math.atan2(dy, dx) - player.angle;
+    // Normalize angle to -PI..PI
+    let angle = enemyAngle;
+    while (angle >  Math.PI) angle -= Math.PI * 2;
+    while (angle < -Math.PI) angle += Math.PI * 2;
+
+    // Skip if outside FOV (+ small margin)
+    if (Math.abs(angle) > FOV / 2 + 0.2) return;
+
+    // Project to screen column
+    // Map angle from -FOV/2..FOV/2 → 0..W
+    const screenX = Math.floor((0.5 + angle / FOV) * W);
+
+    // Size of enemy on screen (closer = bigger)
+    const spriteH = Math.min(H * 1.5, WALL_HEIGHT_SCALE / dist);
+    const spriteW = spriteH * 0.6;
+
+    const drawX = screenX - spriteW / 2;
+    const drawY = HALF_H - spriteH / 2;
+
+    // Draw column by column, checking depth buffer
+    for (let x = Math.floor(drawX); x < drawX + spriteW; x++) {
+      if (x < 0 || x >= W) continue;
+      // Only draw if closer than the wall at this column
+      if (depthBuffer[x] <= dist) continue;
+
+      // Shade by distance
+      const shade = Math.max(0.2, 1 - dist / 10);
+      const r = Math.floor(255 * shade);
+      const g = Math.floor(34  * shade);
+      const b = Math.floor(68  * shade);
+
+      // Draw a vertical strip of the enemy "sprite"
+      // We simulate a simple humanoid with head/body zones
+      const relY = (y) => (y - drawY) / spriteH;
+
+      for (let y = Math.floor(drawY); y < drawY + spriteH; y++) {
+        if (y < 0 || y >= H) continue;
+        const ry = relY(y);
+
+        let cr = r, cg = g, cb = b;
+        // Head region (top 25%) — lighter
+        if (ry < 0.25) { cr = Math.min(255, r + 60); cg = Math.min(255, g + 20); }
+        // Visor strip — cyan flash
+        if (ry > 0.18 && ry < 0.24) { cr = 0; cg = Math.floor(238*shade); cb = Math.floor(255*shade); }
+        // Legs (bottom 30%) — darker
+        if (ry > 0.7) { cr = Math.floor(cr * 0.7); cg = Math.floor(cg * 0.7); cb = Math.floor(cb * 0.7); }
+
+        ctx.fillStyle = `rgb(${cr},${cg},${cb})`;
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
+
+    // Draw health bar above enemy
+    if (dist < 6) {
+      const barW = spriteW * 0.8;
+      const barX = drawX + spriteW * 0.1;
+      const barY = drawY - 8;
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(barX, barY, barW, 4);
+      ctx.fillStyle = en.hp >= 3 ? '#00ff88' : en.hp === 2 ? '#ffe600' : '#ff2244';
+      ctx.fillRect(barX, barY, barW * (en.hp / 3), 4);
+    }
+  });
+}
+
+// ─────────────────────────────────────────────
+// UPDATE ENEMIES
+//
+// Each enemy either patrols or chases the player.
+// They check for wall collision before moving.
+// ─────────────────────────────────────────────
+function updateEnemies(dt) {
+  enemies.forEach(en => {
+    if (!en.alive) return;
+
+    const dx = player.x - en.x;
+    const dy = player.y - en.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+
+    if (dist < 8) {
+      // ── CHASE MODE ── enemy sees player and charges
+      const speed = ENEMY_SPEED * dt * 60;
+      const nx = en.x + (dx/dist) * speed;
+      const ny = en.y + (dy/dist) * speed;
+      if (!isWall(nx, en.y)) en.x = nx;
+      if (!isWall(en.x, ny)) en.y = ny;
+
+      // Damage player on contact
+      if (dist < 0.5) {
+        takeDamage(10);
+      }
+    } else {
+      // ── PATROL MODE ── walk in circles/back-and-forth
+      en.patrolAngle += 0.01 * dt * 60;
+      const speed = ENEMY_SPEED * 0.5 * dt * 60;
+      const nx = en.x + Math.cos(en.patrolAngle) * speed;
+      const ny = en.y + Math.sin(en.patrolAngle) * speed;
+      if (!isWall(nx, en.y)) en.x = nx;
+      if (!isWall(en.x, ny)) en.y = ny;
+    }
+  });
+}
+
+// ─────────────────────────────────────────────
+// PLAYER MOVEMENT & COLLISION
+// ─────────────────────────────────────────────
+function updatePlayer(dt) {
+  const speed = MOVE_SPEED * dt * 15;
+  const cos = Math.cos(player.angle);
+  const sin = Math.sin(player.angle);
+
+  let moved = false;
+
+  if (keys['KeyW'] || keys['ArrowUp']) {
+    const nx = player.x + cos * speed;
+    const ny = player.y + sin * speed;
+    if (!isWall(nx + cos * PLAYER_RADIUS, player.y)) player.x = nx;
+    if (!isWall(player.x, ny + sin * PLAYER_RADIUS)) player.y = ny;
+    moved = true;
+  }
+  if (keys['KeyS'] || keys['ArrowDown']) {
+    const nx = player.x - cos * speed;
+    const ny = player.y - sin * speed;
+    if (!isWall(nx - cos * PLAYER_RADIUS, player.y)) player.x = nx;
+    if (!isWall(player.x, ny - sin * PLAYER_RADIUS)) player.y = ny;
+    moved = true;
+  }
+  // Strafing (sideways movement — perpendicular to look direction)
+  if (keys['KeyA']) {
+    const nx = player.x + sin * speed;
+    const ny = player.y - cos * speed;
+    if (!isWall(nx + sin * PLAYER_RADIUS, player.y)) player.x = nx;
+    if (!isWall(player.x, ny - cos * PLAYER_RADIUS)) player.y = ny;
+    moved = true;
+  }
+  if (keys['KeyD']) {
+    const nx = player.x - sin * speed;
+    const ny = player.y + cos * speed;
+    if (!isWall(nx - sin * PLAYER_RADIUS, player.y)) player.x = nx;
+    if (!isWall(player.x, ny + cos * PLAYER_RADIUS)) player.y = ny;
+    moved = true;
+  }
+
+  // Footstep sounds
+  if (moved) {
+    player.stepTimer -= dt * 1000;
+    if (player.stepTimer <= 0) {
+      SFX.step();
+      player.stepTimer = 380;
+    }
+  }
+
+  // Apply accumulated mouse rotation
+  player.angle += mouseX * ROT_SPEED;
+  // Normalize angle
+  player.angle = (player.angle + Math.PI * 4) % (Math.PI * 2);
+  mouseX = 0;
+}
+
+// ─────────────────────────────────────────────
+// SHOOTING
+// Cast a single ray straight ahead and check if it hits an enemy
+// ─────────────────────────────────────────────
+function shoot() {
+  if (!gameRunning) return;
+  if (ammo <= 0) { SFX.empty(); return; }
+  if (reloading) return;
+
+  ammo--;
+  updateHUD();
+  SFX.shoot();
+
+  // Muzzle flash
+  muzzleFlash.style.opacity = 1;
+  setTimeout(() => muzzleFlash.style.opacity = 0, 80);
+
+  // Crosshair expand
+  crosshair.classList.add('firing');
+  setTimeout(() => crosshair.classList.remove('firing'), 120);
+
+  // Cast center ray (player.angle exactly = straight ahead)
+  const rayDirX = Math.cos(player.angle);
+  const rayDirY = Math.sin(player.angle);
+
+  let hitEnemy = null;
+  let hitDist = Infinity;
+
+  // Find closest enemy in the crosshair direction
+  // We check if each alive enemy is within a small angular tolerance
+  enemies.forEach(en => {
+    if (!en.alive) return;
+    const dx = en.x - player.x;
+    const dy = en.y - player.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+
+    // Angle between look direction and enemy direction
+    const enemyAngle = Math.atan2(dy, dx);
+    let angleDiff = enemyAngle - player.angle;
+    while (angleDiff >  Math.PI) angleDiff -= Math.PI*2;
+    while (angleDiff < -Math.PI) angleDiff += Math.PI*2;
+
+    // Hit tolerance shrinks with distance (harder to hit far enemies)
+    const tolerance = 0.18 / Math.max(1, dist * 0.4);
+
+    if (Math.abs(angleDiff) < tolerance && dist < hitDist) {
+      // Check line of sight — is there a wall between player and enemy?
+      let wallInWay = false;
+      for (let t = 0.5; t < dist; t += 0.1) {
+        if (isWall(player.x + rayDirX * t, player.y + rayDirY * t)) {
+          wallInWay = true; break;
+        }
+      }
+      if (!wallInWay) { hitEnemy = en; hitDist = dist; }
+    }
+  });
+
+  if (hitEnemy) {
+    hitEnemy.hp--;
+    SFX.hit();
+
+    // Show hit marker
+    hitMarker.style.opacity = 1;
+    crosshair.classList.add('hit');
+    setTimeout(() => { hitMarker.style.opacity = 0; crosshair.classList.remove('hit'); }, 200);
+
+    if (hitEnemy.hp <= 0) {
+      hitEnemy.alive = false;
+      kills++;
+      updateHUD();
+      SFX.kill();
+      addKillfeed();
+      checkWin();
+    }
+  }
+
+  // Auto-reload when empty
+  if (ammo <= 0) startReload();
+}
+
+// ─────────────────────────────────────────────
+// RELOAD
+// ─────────────────────────────────────────────
+function startReload() {
+  if (reloading || ammo === MAX_AMMO) return;
+  reloading = true;
+  SFX.reload();
+  ammoEl.textContent = 'RLD';
+  clearTimeout(reloadTimer);
+  reloadTimer = setTimeout(() => {
+    ammo = MAX_AMMO;
+    reloading = false;
+    updateHUD();
+  }, RELOAD_TIME);
+}
+
+// ─────────────────────────────────────────────
+// TAKE DAMAGE
+// ─────────────────────────────────────────────
+function takeDamage(amount) {
+  hp = Math.max(0, hp - amount);
+  SFX.hurt();
+  updateHUD();
+
+  // Red vignette flash
+  damageVig.style.opacity = 1;
+  setTimeout(() => damageVig.style.opacity = 0, 300);
+
+  if (hp <= 0) gameOver();
+}
+
+// ─────────────────────────────────────────────
+// HUD UPDATE
+// ─────────────────────────────────────────────
+function updateHUD() {
+  hpEl.textContent = hp;
+  hpBar.style.width = hp + '%';
+  // Color shift: green → yellow → red based on hp
+  const hue = Math.floor(hp * 1.2);
+  hpBar.style.background = `hsl(${hue}, 100%, 55%)`;
+  hpEl.style.color = hp > 50 ? 'var(--green)' : hp > 25 ? 'var(--yellow)' : 'var(--red)';
+
+  if (!reloading) ammoEl.textContent = ammo;
+  killsEl.textContent = kills;
+}
+
+// Kill feed notification
+function addKillfeed() {
+  const line = document.createElement('div');
+  line.className = 'kf-line';
+  line.textContent = `► ENEMY NEUTRALIZED [${kills}]`;
+  killfeed.prepend(line);
+  setTimeout(() => line.remove(), 2600);
+}
+
+// ─────────────────────────────────────────────
+// MINIMAP RENDERER
+// Draws a top-down 2D view of the map with
+// player position/direction and enemy positions
+// ─────────────────────────────────────────────
+function drawMinimap() {
+  const mmW = mmCanvas.width;
+  const mmH = mmCanvas.height;
+  const cellW = mmW / MAP_COLS;
+  const cellH = mmH / MAP_ROWS;
+
+  mmCtx.clearRect(0, 0, mmW, mmH);
+  mmCtx.fillStyle = 'rgba(0,0,0,0.7)';
+  mmCtx.fillRect(0, 0, mmW, mmH);
+
+  // Draw map cells
+  for (let row = 0; row < MAP_ROWS; row++) {
+    for (let col = 0; col < MAP_COLS; col++) {
+      if (MAP_DATA[row][col]) {
+        mmCtx.fillStyle = 'rgba(0,180,220,0.5)';
+        mmCtx.fillRect(col * cellW + 1, row * cellH + 1, cellW - 2, cellH - 2);
+      }
+    }
+  }
+
+  // Draw enemies
+  enemies.forEach(en => {
+    if (!en.alive) return;
+    mmCtx.fillStyle = '#ff2244';
+    mmCtx.beginPath();
+    mmCtx.arc(en.x * cellW, en.y * cellH, 3, 0, Math.PI * 2);
+    mmCtx.fill();
+  });
+
+  // Draw player
+  const px = player.x * cellW;
+  const py = player.y * cellH;
+  mmCtx.fillStyle = '#00eeff';
+  mmCtx.beginPath();
+  mmCtx.arc(px, py, 4, 0, Math.PI * 2);
+  mmCtx.fill();
+
+  // Draw player direction arrow
+  mmCtx.strokeStyle = '#00eeff';
+  mmCtx.lineWidth = 1.5;
+  mmCtx.beginPath();
+  mmCtx.moveTo(px, py);
+  mmCtx.lineTo(
+    px + Math.cos(player.angle) * 8,
+    py + Math.sin(player.angle) * 8
+  );
+  mmCtx.stroke();
+}
+
+// ─────────────────────────────────────────────
+// WIN / GAME OVER
+// ─────────────────────────────────────────────
+function checkWin() {
+  const allDead = enemies.every(e => !e.alive);
+  if (allDead) {
+    gameRunning = false;
+    cancelAnimationFrame(frameId);
+    document.exitPointerLock();
+    document.getElementById('win-stats').textContent =
+      `All ${enemies.length} enemies eliminated. Kills: ${kills}`;
+    document.getElementById('screen-win').style.display = 'flex';
+  }
+}
+
+function gameOver() {
+  if (!gameRunning) return;
+  gameRunning = false;
+  cancelAnimationFrame(frameId);
+  document.exitPointerLock();
+  SFX.die();
+  document.getElementById('go-stats').textContent =
+    `You were eliminated with ${kills} kills.`;
+  document.getElementById('screen-gameover').style.display = 'flex';
+}
+
+// ─────────────────────────────────────────────
+// MAIN GAME LOOP
+// ─────────────────────────────────────────────
+function gameLoop(timestamp) {
+  if (!gameRunning) return;
+
+  // Delta time: time since last frame in seconds
+  // Keeps speed consistent regardless of frame rate
+  const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+  lastTime = timestamp;
+
+  updatePlayer(dt);
+  updateEnemies(dt);
+
+  // Render
+  const depthBuffer = castRays();
+  renderEnemies(depthBuffer);
+  drawMinimap();
+
+  frameId = requestAnimationFrame(gameLoop);
+}
+
+// ─────────────────────────────────────────────
+// POINTER LOCK — captures mouse for FPS look
+//
+// Pointer lock "captures" the mouse inside the window.
+// mousemove events then give us movement deltas (movementX/Y)
+// instead of absolute coordinates — perfect for FPS rotation.
+// ─────────────────────────────────────────────
+const gameContainer = document.getElementById('game-container');
+
+gameContainer.addEventListener('click', () => {
+  if (!gameRunning) return;
+  gameContainer.requestPointerLock();
+});
+
+document.addEventListener('pointerlockchange', () => {
+  if (document.pointerLockElement === gameContainer) {
+    lockMsg.style.display = 'none';
+  } else {
+    lockMsg.style.display = 'block';
+  }
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (document.pointerLockElement === gameContainer) {
+    mouseX += e.movementX; // Accumulate — applied in updatePlayer()
+  }
+});
+
+document.addEventListener('mousedown', (e) => {
+  if (e.button === 0 && gameRunning) {
+    if (document.pointerLockElement === gameContainer) {
+      shoot();
+    } else {
+      gameContainer.requestPointerLock();
+    }
+  }
+});
+
+// Keyboard
+document.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'KeyR' && gameRunning) startReload();
+  e.preventDefault();
+});
+document.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// ─────────────────────────────────────────────
+// START / RESTART
+// ─────────────────────────────────────────────
+function startGame() {
+  document.getElementById('screen-start').style.display = 'none';
+  document.getElementById('screen-gameover').style.display = 'none';
+  document.getElementById('screen-win').style.display = 'none';
+  initGame();
+  gameRunning = true;
+  lastTime = performance.now();
+  frameId = requestAnimationFrame(gameLoop);
+  gameContainer.requestPointerLock();
+}
+
+function restartGame() {
+  cancelAnimationFrame(frameId);
+  clearTimeout(reloadTimer);
+  startGame();
+}
+
+window.startGame   = startGame;
+window.restartGame = restartGame;
+</script>
+</body>
+</html>
