@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/evaluation.css">
+    <title>Teacher Evaluation</title>
+</head>
+
+<body>
+
+    <main class="evaluation-page">
+        <a href="dashboard.HTML" class="back-btn">← Back</a>
+
+        <h1>Teacher Evaluation</h1>
+
+        <div class="teacher-select">
+
+            <label for="teacher">👨‍🏫 Select Teacher</label>
+
+            <select id="teacher">
+
+                <option value="">Choose a teacher</option>
+
+                <option value="science">Dana Owies</option>
+                <option value="math">Sara Dyab</option>
+                <option value="english">English Teacher</option>
+                <option value="arabic">Arabic Teacher</option>
+                <option value="ict">ICT Teacher</option>
+                <option value="islamic">Islamic Teacher</option>
+                <option value="social">Social Studies Teacher</option>
+
+            </select>
+
+            <div class="evaluation-form">
+
+                <div class="rating">
+
+                    <p>⭐ Teaching Clarity</p>
+
+                    <div class="stars">
+                        <span class="star">★</span>
+                        <span class="star">★</span>
+                        <span class="star">★</span>
+                        <span class="star">★</span>
+                        <span class="star">★</span>
+                    </div>
+
+                </div>
+
+
+                <div class="rating">
+
+                    <p>Class Engagement</p>
+
+                    <div class="stars">
+                        <span class="star">★</span>
+                        <span class="star">★</span>
+                        <span class="star">★</span>
+                        <span class="star">★</span>
+                        <span class="star">★</span>
+                    </div>
+
+                </div>
+
+
+                <div class="rating">
+
+                    <p>📚 Homework Helpfulness</p>
+
+                    <div class="stars">
+                        <span class="star">★</span>
+                        <span class="star">★</span>
+                        <span class="star">★</span>
+                        <span class="star">★</span>
+                        <span class="star">★</span>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="comment-box">
+
+            <label for="comment">Additional Comments</label>
+
+            <textarea id="comment" placeholder="Optional feedback..."></textarea>
+
+        </div>
+
+        <button class="submit-btn">✔ Submit Evaluation</button>
+    </main>
+
+    <div class="submit-popup" id="submitPopup">
+
+        <div class="popup-card">
+
+            <h2>Evaluation Submitted!</h2>
+
+            <p>Thank you for your feedback.</p>
+
+            <a href="dashboard.HTML" class="popup-close">OK</a>
+
+        </div>
+
+    </div>
+
+    <script src="js/evaluation.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- Basic page setup -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Resources page styling -->
+    <link rel="stylesheet" href="css/resources.css">
+
+    <title>Student Resources</title>
+</head>
+
+<body>
+
+    <!-- MAIN PAGE CONTAINER -->
+    <main class="resources-page">
+
+        <!-- Back button → returns to dashboard -->
+        <a href="dashboard.HTML" class="back-btn">← Back</a>
+
+        <!-- Page title -->
+        <h1>Resources</h1>
+
+
+        <!-- ================================================= -->
+        <!-- SUBJECT SELECTION SCREEN (FIRST SCREEN STUDENTS SEE) -->
+        <!-- ================================================= -->
+
+        <section class="subject-select-screen">
+
+            <h2>Select a Subject</h2>
+
+            <!-- Grid layout for subject buttons -->
+            <div class="subject-grid">
+
+                <!-- Each button represents a subject -->
+                <!-- JavaScript listens for clicks on these -->
+
+                <button class="subject-card">Science</button>
+                <button class="subject-card">Math</button>
+                <button class="subject-card">English</button>
+                <button class="subject-card">Arabic</button>
+                <button class="subject-card">ICT</button>
+                <button class="subject-card">Islamic</button>
+                <button class="subject-card">Social Studies</button>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- ================================================= -->
+        <!-- SUBJECT RESOURCE SCREEN (OPENS AFTER SUBJECT CLICK) -->
+        <!-- ================================================= -->
+
+        <section class="subject-resource-screen">
+
+            <!-- Back button → returns to subject list -->
+            <button class="back-to-subjects">← Back to Subjects</button>
+
+
+            <!-- SUBJECT HEADER -->
+            <!-- JavaScript updates these dynamically -->
+
+            <div class="subject-header">
+
+                <!-- Subject name (changes when clicking a subject) -->
+                <h2 class="subject-title">Math</h2>
+
+                <!-- Teacher name (also updated with JS) -->
+                <p class="teacher-name">Teacher: Sara Dyab</p>
+
+            </div>
+
+
+
+            <!-- ===================== -->
+            <!-- FILES SECTION -->
+            <!-- ===================== -->
+
+            <div class="resource-section">
+
+                <h3>Files</h3>
+                <div id="files-container"></div>
+
+            </div>
+
+
+
+            <!-- ===================== -->
+            <!-- SLIDES SECTION -->
+            <!-- ===================== -->
+
+            <div class="resource-section">
+
+                <h3>Slides</h3>
+                <div id="slides-container"></div>
+
+            </div>
+
+
+
+            <!-- ===================== -->
+            <!-- LINKS SECTION -->
+            <!-- ===================== -->
+
+            <div class="resource-section">
+
+                <h3>Links</h3>
+                <div id="links-container"></div>
+
+            </div>
+
+            <!-- ===================== -->
+            <!-- ASSIGNMENTS SECTION -->
+            <!-- ===================== -->
+
+            <div class="resource-section">
+
+                <h3>Assignments</h3>
+
+                <div id="assignments-container"></div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- JavaScript controlling subject switching + ripple animation -->
+    <script src="js/resources.js"></script>
+
+</body>
+
+</html>

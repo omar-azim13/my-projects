@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/portal.css">
+    <title>City American School Portal</title>
+</head>
+
+<body>
+
+    <!-- NAVBAR -->
+    <header class="top-navbar">
+
+        <div class="nav-left">
+            ☰
+            <span class="logo-text">City American School</span>
+        </div>
+
+        <div class="nav-center">
+            <input type="text" placeholder="Search modules..." class="nav-search">
+        </div>
+
+        <div class="nav-right">
+            <span class="nav-icon">📅</span>
+            <span class="nav-icon">🔔</span>
+
+            <div class="profile-menu">
+                <span class="profile-name">👤 Omar Azim ▾</span>
+
+                <div class="profile-dropdown">
+                    <a href="#">👤 Profile</a>
+                    <a href="#">⚙ Settings</a>
+                    <a href="login.HTML">🚪 Logout</a>
+                </div>
+            </div>
+        </div>
+
+    </header>
+
+
+    <!-- SIDEBAR -->
+    <nav class="sidebar">
+        <ul>
+            <li><a href="#" class="active">🏠 Dashboard</a></li>
+            <li><a href="#">🔄 Online Renewal</a></li>
+            <li><a href="#">💬 Communication</a></li>
+            <li><a href="#">💳 Financial Status</a></li>
+            <li><a href="#">🎓 Academics</a></li>
+            <li><a href="#">📄 Report Cards</a></li>
+            <li><a href="#">📝 Quiz Marks</a></li>
+            <li><a href="StudentResources.HTML">📂 Student Resources</a></li>
+            <li><a href="#">📊 Attendance</a></li>
+            <li><a href="#">⚠ Conduct</a></li>
+            <li><a href="#">🚌 School Transport</a></li>
+            <li><a href="#">💰 Online Payment</a></li>
+            <li><a href="TeacherEvaluation.HTML">⭐ Teacher Evaluation</a></li>
+        </ul>
+    </nav>
+
+
+    <!-- DASHBOARD CONTENT -->
+    <div class="dashboard">
+
+        <!-- THIS FIXES EVERYTHING -->
+        <div class="dashboard-inner">
+
+            <!-- MAIN CONTENT -->
+            <main class="main-content">
+
+                <section class="welcome-banner">
+                    <h1>☀ Good Morning, Omar</h1>
+                    <p>Welcome back to the City American School Portal</p>
+                </section>
+
+                <section class="attendance-card">
+                    <h2>📊 Attendance Overview</h2>
+
+                    <div class="attendance-info">
+                        <p>Present: <strong>92%</strong></p>
+
+                        <div class="attendance-bar">
+                            <div class="attendance-progress"></div>
+                        </div>
+
+                        <p>Absent: 8%</p>
+                    </div>
+                </section>
+
+                <section class="recent-resources">
+
+                    <h2>📂 Recent Resources</h2>
+
+                    <ul>
+                        <li>
+                            <a href="StudentResources.HTML" class="latest-rscs">
+                                📄 Algebra Worksheet
+                            </a>
+                        </li>
+
+                        <li>
+                            <a href="StudentResources.HTML" class="latest-rscs">
+                                📊 Science Lesson Slides
+                            </a>
+                        </li>
+
+                        <li>
+                            <a href="StudentResources.HTML" class="latest-rscs">
+                                📄 English Essay Guide
+                            </a>
+                        </li>
+                    </ul>
+
+                </section>
+
+            </main>
+
+
+            <!-- RIGHT PANEL -->
+            <aside class="right-panel">
+
+                <div class="profile-card">
+                    <h3>👤 Student Profile</h3>
+                    <p><strong>Omar Azim</strong></p>
+                    <p>Grade 7B2</p>
+                    <p>ID: 12345</p>
+                </div>
+
+                <div class="calendar-card">
+                    <h3>📅 Today</h3>
+                    <p>March 10, 2026</p>
+                </div>
+
+                <div class="events-card">
+
+                    <h3>📌 Upcoming Events</h3>
+
+                    <ul>
+
+                        <li class="event-1">
+                            <small>• April 1, 2026</small>
+                            <h4>April Fools!</h4>
+                        </li>
+
+                        <li class="event-2">
+                            <small>• 25 July, 2026</small>
+                            <h4>Science Fair</h4>
+                        </li>
+
+                        <li class="event-3">
+                            <small>• 27 June, 2026</small>
+                            <h4>Talent Show</h4>
+                        </li>
+
+                    </ul>
+
+                </div>
+
+            </aside>
+
+        </div>
+
+    </div>
+
+    <script src="js/portal.js"></script>
+
+</body>
+
+</html>
