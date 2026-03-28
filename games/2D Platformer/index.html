@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<!--
+  ╔══════════════════════════════════════════════════════════════╗
+  ║           NEON RUNNER — 2D Platformer Game                   ║
+  ║   Pure HTML + CSS + Vanilla JavaScript. No libraries.        ║
+  ║   Aesthetic: Cyberpunk neon on deep dark backgrounds         ║
+  ╚══════════════════════════════════════════════════════════════╝
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NEON RUNNER</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ═══════════════════════════════════════════
+       CSS VARIABLES — single source of truth
+       for colors, sizes, and transitions
+    ═══════════════════════════════════════════ */
+    :root {
+      --neon-cyan:    #00f5ff;
+      --neon-pink:    #ff007f;
+      --neon-yellow:  #ffe600;
+      --neon-green:   #39ff14;
+      --dark-bg:      #050510;
+      --mid-bg:       #0a0a1f;
+      --platform-col: #1a1a3e;
+      --platform-glow:#00f5ff;
+      --player-col:   #00f5ff;
+      --enemy-col:    #ff007f;
+      --goal-col:     #ffe600;
+      --ui-font:      'Orbitron', monospace;
+      --code-font:    'Share Tech Mono', monospace;
+    }
+
+    /* ═══════════════════════════════════════════
+       RESET & BASE
+    ═══════════════════════════════════════════ */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--dark-bg);
+      font-family: var(--ui-font);
+      overflow: hidden;           /* No scrollbars — game fills screen */
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      user-select: none;          /* Prevent text selection while playing */
+    }
+
+    /* ═══════════════════════════════════════════
+       GAME WRAPPER
+       Everything visible lives inside here
+    ═══════════════════════════════════════════ */
+    #game-wrapper {
+      position: relative;
+      width: 900px;
+      height: 540px;
+      border: 2px solid var(--neon-cyan);
+      border-radius: 4px;
+      overflow: hidden;           /* Clip anything outside the viewport */
+      box-shadow:
+        0 0 30px rgba(0, 245, 255, 0.3),
+        0 0 80px rgba(0, 245, 255, 0.1),
+        inset 0 0 60px rgba(0, 0, 20, 0.9);
+    }
+
+    /* Scanline overlay — pure CSS retro effect */
+    #game-wrapper::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 100;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.08) 2px,
+        rgba(0, 0, 0, 0.08) 4px
+      );
+    }
+
+    /* ═══════════════════════════════════════════
+       GAME CANVAS — the scrolling world
+       Its left position shifts for camera scroll
+    ═══════════════════════════════════════════ */
+    #game-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      /* Width is set dynamically per level (wider than viewport) */
+      height: 100%;
+      /* CSS transition on left makes camera follow smooth */
+      transition: left 0.06s linear;
+    }
+
+    /* ═══════════════════════════════════════════
+       BACKGROUND LAYERS — parallax stars
+    ═══════════════════════════════════════════ */
+    .bg-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 200%;     /* Extra wide so we can parallax scroll */
+      height: 100%;
+      pointer-events: none;
+    }
+
+    /* Distant stars — move slower (parallax depth) */
+    #bg-far {
+      background-image:
+        radial-gradient(1px 1px at 10% 20%, rgba(0,245,255,0.6) 0%, transparent 100%),
+        radial-gradient(1px 1px at 30% 60%, rgba(255,255,255,0.4) 0%, transparent 100%),
+        radial-gradient(1px 1px at 55% 10%, rgba(255,0,127,0.5) 0%, transparent 100%),
+        radial-gradient(1px 1px at 70% 80%, rgba(255,255,255,0.3) 0%, transparent 100%),
+        radial-gradient(1px 1px at 90% 40%, rgba(0,245,255,0.5) 0%, transparent 100%),
+        radial-gradient(1px 1px at 15% 90%, rgba(255,230,0,0.4) 0%, transparent 100%),
+        radial-gradient(1px 1px at 45% 50%, rgba(255,255,255,0.3) 0%, transparent 100%),
+        radial-gradient(1px 1px at 80% 15%, rgba(255,0,127,0.4) 0%, transparent 100%),
+        radial-gradient(1px 1px at 25% 35%, rgba(0,245,255,0.3) 0%, transparent 100%),
+        radial-gradient(1px 1px at 60% 70%, rgba(255,255,255,0.5) 0%, transparent 100%),
+        radial-gradient(2px 2px at 5%  5%,  rgba(255,230,0,0.5) 0%, transparent 100%),
+        radial-gradient(2px 2px at 95% 95%, rgba(0,245,255,0.4) 0%, transparent 100%);
+      background-size: 100% 100%;
+    }
+
+    /* Near background — city grid lines */
+    #bg-near {
+      background-image:
+        linear-gradient(rgba(0,245,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,245,255,0.04) 1px, transparent 1px);
+      background-size: 60px 60px;
+    }
+
+    /* ═══════════════════════════════════════════
+       PLATFORM
+       Each platform is a div inside #game-canvas.
+       Positioned absolutely with top/left/width/height.
+    ═══════════════════════════════════════════ */
+    .platform {
+      position: absolute;
+      background: var(--platform-col);
+      border: 1px solid rgba(0, 245, 255, 0.5);
+      border-radius: 4px;
+      /* Neon glow on top edge */
+      box-shadow:
+        0 -2px 8px rgba(0, 245, 255, 0.6),
+        inset 0 1px 0 rgba(0, 245, 255, 0.3);
+    }
+
+    /* Moving platforms get an animation */
+    .platform.moving {
+      border-color: rgba(255, 230, 0, 0.6);
+      box-shadow:
+        0 -2px 8px rgba(255, 230, 0, 0.6),
+        inset 0 1px 0 rgba(255, 230, 0, 0.3);
+    }
+
+    /* Ground platform — solid and tall */
+    .platform.ground {
+      background: linear-gradient(180deg, #1a1a3e 0%, #0a0a1f 100%);
+    }
+
+    /* ═══════════════════════════════════════════
+       PLAYER
+    ═══════════════════════════════════════════ */
+    #player {
+      position: absolute;
+      width: 28px;
+      height: 36px;
+      background: var(--player-col);
+      border-radius: 6px 6px 3px 3px;
+      /* Cyan glow on the player */
+      box-shadow:
+        0 0 12px rgba(0, 245, 255, 0.9),
+        0 0 30px rgba(0, 245, 255, 0.4);
+      /* We'll use CSS transitions for smooth position — NO, we use JS transforms */
+      /* transform is GPU-accelerated and much smoother than top/left */
+      will-change: transform;
+      z-index: 10;
+    }
+
+    /* Player face — just CSS shapes */
+    #player::before {
+      content: '';
+      position: absolute;
+      top: 8px;
+      left: 5px;
+      width: 7px;
+      height: 7px;
+      background: var(--dark-bg);
+      border-radius: 50%;
+      box-shadow: 11px 0 0 var(--dark-bg);  /* Second eye via shadow */
+    }
+
+    /* Player visor line */
+    #player::after {
+      content: '';
+      position: absolute;
+      bottom: 8px;
+      left: 4px;
+      right: 4px;
+      height: 3px;
+      background: rgba(0,245,255,0.4);
+      border-radius: 2px;
+    }
+
+    /* Jump squish animation */
+    @keyframes squish-jump {
+      0%   { transform: scaleY(1)   scaleX(1); }
+      10%  { transform: scaleY(0.7) scaleX(1.3); }  /* Squish on takeoff */
+      30%  { transform: scaleY(1.2) scaleX(0.85); } /* Stretch in air */
+      100% { transform: scaleY(1)   scaleX(1); }
+    }
+
+    #player.jumping {
+      animation: squish-jump 0.35s ease forwards;
+    }
+
+    /* Walking bob */
+    @keyframes walk-bob {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-2px); }
+    }
+    #player.walking {
+      animation: walk-bob 0.2s ease-in-out infinite;
+    }
+
+    /* ═══════════════════════════════════════════
+       ENEMY — patrols back and forth
+    ═══════════════════════════════════════════ */
+    .enemy {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      background: var(--enemy-col);
+      border-radius: 4px;
+      box-shadow:
+        0 0 12px rgba(255, 0, 127, 0.9),
+        0 0 30px rgba(255, 0, 127, 0.4);
+      z-index: 9;
+      will-change: transform;
+    }
+
+    /* Enemy "eye" — crosshair shape */
+    .enemy::before {
+      content: '✕';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 14px;
+      color: white;
+      font-family: monospace;
+    }
+
+    /* Enemy hover pulse */
+    @keyframes enemy-pulse {
+      0%, 100% { box-shadow: 0 0 12px rgba(255,0,127,0.9), 0 0 30px rgba(255,0,127,0.4); }
+      50%       { box-shadow: 0 0 20px rgba(255,0,127,1.0), 0 0 50px rgba(255,0,127,0.7); }
+    }
+    .enemy { animation: enemy-pulse 1s ease-in-out infinite; }
+
+    /* ═══════════════════════════════════════════
+       GOAL OBJECT — the star/portal to collect
+    ═══════════════════════════════════════════ */
+    .goal {
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      background: var(--goal-col);
+      border-radius: 50%;
+      box-shadow:
+        0 0 16px rgba(255, 230, 0, 1.0),
+        0 0 40px rgba(255, 230, 0, 0.5);
+      z-index: 9;
+    }
+
+    @keyframes goal-float {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50%       { transform: translateY(-8px) rotate(180deg); }
+    }
+    .goal { animation: goal-float 2s ease-in-out infinite; }
+
+    /* Goal inner star */
+    .goal::before {
+      content: '★';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 18px;
+      color: var(--dark-bg);
+    }
+
+    /* ═══════════════════════════════════════════
+       COIN PICKUPS
+    ═══════════════════════════════════════════ */
+    .coin {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      background: var(--neon-yellow);
+      border-radius: 50%;
+      box-shadow: 0 0 8px rgba(255,230,0,0.8);
+      z-index: 9;
+    }
+
+    @keyframes coin-spin {
+      0%   { transform: scaleX(1);  }
+      50%  { transform: scaleX(0.1);}
+      100% { transform: scaleX(1);  }
+    }
+    .coin { animation: coin-spin 1.2s linear infinite; }
+
+    /* ═══════════════════════════════════════════
+       HUD — Heads Up Display (score, level, lives)
+       Fixed over the game — NOT inside the scrolling canvas
+    ═══════════════════════════════════════════ */
+    #hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 44px;
+      background: rgba(5, 5, 16, 0.85);
+      border-bottom: 1px solid rgba(0, 245, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 50;
+      font-size: 13px;
+      backdrop-filter: blur(4px);
+    }
+
+    .hud-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: rgba(255,255,255,0.6);
+      font-family: var(--code-font);
+    }
+    .hud-value {
+      color: var(--neon-cyan);
+      font-weight: 700;
+      font-size: 15px;
+    }
+    .hud-lives .hud-value { color: var(--neon-pink); }
+    .hud-level .hud-value { color: var(--neon-yellow); }
+
+    /* ═══════════════════════════════════════════
+       INSTRUCTIONS PANEL
+    ═══════════════════════════════════════════ */
+    #instructions {
+      position: absolute;
+      bottom: 14px;
+      left: 14px;
+      background: rgba(5, 5, 16, 0.75);
+      border: 1px solid rgba(0,245,255,0.2);
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-family: var(--code-font);
+      font-size: 11px;
+      color: rgba(255,255,255,0.5);
+      line-height: 1.8;
+      z-index: 50;
+      pointer-events: none;
+    }
+    #instructions span { color: var(--neon-cyan); }
+
+    /* ═══════════════════════════════════════════
+       OVERLAY SCREENS — Start, Win, Game Over
+    ═══════════════════════════════════════════ */
+    .screen-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(5, 5, 16, 0.92);
+      z-index: 200;
+      backdrop-filter: blur(6px);
+      gap: 20px;
+      /* Fade in */
+      animation: fade-in 0.4s ease forwards;
+    }
+
+    @keyframes fade-in {
+      from { opacity: 0; transform: scale(0.97); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+
+    .overlay-title {
+      font-size: 48px;
+      font-weight: 900;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+    }
+
+    .overlay-title.cyan  { color: var(--neon-cyan);   text-shadow: 0 0 30px var(--neon-cyan); }
+    .overlay-title.pink  { color: var(--neon-pink);   text-shadow: 0 0 30px var(--neon-pink); }
+    .overlay-title.gold  { color: var(--neon-yellow); text-shadow: 0 0 30px var(--neon-yellow); }
+
+    .overlay-sub {
+      font-family: var(--code-font);
+      font-size: 14px;
+      color: rgba(255,255,255,0.5);
+      text-align: center;
+      line-height: 1.8;
+      max-width: 400px;
+    }
+
+    .btn {
+      padding: 12px 36px;
+      font-family: var(--ui-font);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .btn-cyan {
+      background: var(--neon-cyan);
+      color: var(--dark-bg);
+      box-shadow: 0 0 20px rgba(0,245,255,0.5);
+    }
+    .btn-cyan:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 30px rgba(0,245,255,0.8);
+    }
+
+    .btn-pink {
+      background: var(--neon-pink);
+      color: white;
+      box-shadow: 0 0 20px rgba(255,0,127,0.5);
+    }
+    .btn-pink:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 30px rgba(255,0,127,0.8);
+    }
+
+    /* ═══════════════════════════════════════════
+       DAMAGE FLASH — red screen flash on hit
+    ═══════════════════════════════════════════ */
+    #damage-flash {
+      position: absolute;
+      inset: 0;
+      background: rgba(255,0,0,0.25);
+      pointer-events: none;
+      z-index: 99;
+      opacity: 0;
+      transition: opacity 0.1s;
+    }
+
+    /* ═══════════════════════════════════════════
+       PARTICLE EFFECT — explosion/collect sparks
+    ═══════════════════════════════════════════ */
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 30;
+    }
+    @keyframes particle-anim {
+      0%   { opacity: 1; transform: translate(0, 0) scale(1); }
+      100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0); }
+    }
+
+    /* ═══════════════════════════════════════════
+       GAME TITLE BAR (above the game wrapper)
+    ═══════════════════════════════════════════ */
+    #title-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 10px;
+      font-size: 11px;
+      letter-spacing: 3px;
+      color: rgba(0,245,255,0.5);
+    }
+    #title-bar .title-main {
+      font-size: 20px;
+      font-weight: 900;
+      color: var(--neon-cyan);
+      text-shadow: 0 0 20px rgba(0,245,255,0.6);
+    }
+
+    /* ═══════════════════════════════════════════
+       LEVEL TRANSITION — flash between levels
+    ═══════════════════════════════════════════ */
+    #level-flash {
+      position: absolute;
+      inset: 0;
+      background: var(--neon-cyan);
+      z-index: 150;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    /* ═══════════════════════════════════════════
+       MOVING PLATFORM CSS ANIMATION
+       We override this in JS for smooth movement
+    ═══════════════════════════════════════════ */
+    .spike {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: var(--neon-pink);
+      clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+      box-shadow: 0 0 10px rgba(255,0,127,0.8);
+      z-index: 9;
+    }
+    .spike::before {
+      content: '';
+      position: absolute;
+      inset: 3px;
+      background: rgba(255,255,255,0.2);
+      clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Title bar above the game -->
+  <div id="title-bar">
+    <span>▶</span>
+    <span class="title-main">NEON RUNNER</span>
+    <span>◀</span>
+    <span style="margin-left:20px;">CYBERPUNK PLATFORMER v1.0</span>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       GAME WRAPPER — clipping viewport
+  ═══════════════════════════════════════════ -->
+  <div id="game-wrapper">
+
+    <!-- Background layers (parallax) -->
+    <div class="bg-layer" id="bg-far"></div>
+    <div class="bg-layer" id="bg-near"></div>
+
+    <!-- The scrolling world canvas -->
+    <div id="game-canvas">
+      <!-- Platforms, enemies, goals, player are injected by JS -->
+    </div>
+
+    <!-- HUD — fixed overlay, doesn't scroll -->
+    <div id="hud">
+      <div class="hud-item hud-score">
+        SCORE <span class="hud-value" id="hud-score">0</span>
+      </div>
+      <div class="hud-item hud-level">
+        LEVEL <span class="hud-value" id="hud-level">1</span>
+      </div>
+      <div class="hud-item hud-lives">
+        ♥ LIVES <span class="hud-value" id="hud-lives">3</span>
+      </div>
+    </div>
+
+    <!-- Instructions -->
+    <div id="instructions">
+      <span>←→</span> Move &nbsp;|&nbsp; <span>↑ / SPACE / W</span> Jump<br>
+      Collect <span>★</span> stars &nbsp;|&nbsp; Avoid <span style="color:var(--neon-pink);">✕</span> enemies & <span style="color:var(--neon-pink);">▲</span> spikes
+    </div>
+
+    <!-- Damage flash overlay -->
+    <div id="damage-flash"></div>
+    <div id="level-flash"></div>
+
+    <!-- SCREEN: Start -->
+    <div class="screen-overlay" id="screen-start">
+      <div class="overlay-title cyan">NEON RUNNER</div>
+      <div class="overlay-sub">
+        A cyberpunk platformer.<br>
+        Collect all stars to advance. 3 levels await.<br><br>
+        <span style="color:var(--neon-cyan);">← →</span> to move &nbsp;|&nbsp;
+        <span style="color:var(--neon-cyan);">↑ / SPACE</span> to jump
+      </div>
+      <button class="btn btn-cyan" onclick="startGame()">▶ BOOT UP</button>
+    </div>
+
+    <!-- SCREEN: Win -->
+    <div class="screen-overlay" id="screen-win" style="display:none;">
+      <div class="overlay-title gold">YOU WIN!</div>
+      <div class="overlay-sub" id="win-msg">Level complete!</div>
+      <div style="display:flex;gap:12px;">
+        <button class="btn btn-cyan" id="btn-next" onclick="nextLevel()">NEXT LEVEL ▶</button>
+        <button class="btn btn-pink" onclick="restartGame()">↺ RESTART</button>
+      </div>
+    </div>
+
+    <!-- SCREEN: Game Over -->
+    <div class="screen-overlay" id="screen-gameover" style="display:none;">
+      <div class="overlay-title pink">GAME OVER</div>
+      <div class="overlay-sub" id="gameover-msg">You ran out of lives.</div>
+      <button class="btn btn-pink" onclick="restartGame()">↺ TRY AGAIN</button>
+    </div>
+
+    <!-- SCREEN: All Levels Complete -->
+    <div class="screen-overlay" id="screen-complete" style="display:none;">
+      <div class="overlay-title gold">ALL CLEAR!</div>
+      <div class="overlay-sub" id="complete-msg">You conquered all 3 levels!</div>
+      <button class="btn btn-cyan" onclick="restartGame()">↺ PLAY AGAIN</button>
+    </div>
+
+  </div><!-- end #game-wrapper -->
+
+
+  <!-- ═══════════════════════════════════════════
+       JAVASCRIPT — The Game Engine
+  ═══════════════════════════════════════════ -->
+  <script>
+
+    // ═══════════════════════════════════════════
+    // CONSTANTS
+    // ═══════════════════════════════════════════
+    const VIEWPORT_W   = 900;   // Width of the visible game area (px)
+    const VIEWPORT_H   = 540;   // Height of the visible game area (px)
+    const HUD_H        = 44;    // HUD bar height (px)
+    const PLAYFIELD_H  = VIEWPORT_H - HUD_H; // Usable play height
+
+    const GRAVITY      = 0.55;  // How fast player accelerates downward
+    const JUMP_FORCE   = -13;   // Negative = up (Y increases downward in DOM)
+    const MOVE_SPEED   = 4.5;   // Horizontal speed (px per frame)
+    const FRICTION     = 0.82;  // Slows horizontal movement when no key pressed
+    const TERMINAL_VEL = 16;    // Max fall speed (prevents tunneling)
+
+    // ═══════════════════════════════════════════
+    // LEVEL DEFINITIONS
+    // Each level has: world width, platforms, enemies, spikes, goals, coins
+    // All positions are in pixels from top-left of the level world
+    // ═══════════════════════════════════════════
+    const LEVELS = [
+      // ─────────── LEVEL 1 — Tutorial ───────────
+      {
+        worldWidth: 2000,
+        bgColor: 'linear-gradient(180deg, #050510 0%, #080820 60%, #0a0515 100%)',
+        platforms: [
+          // Ground — spans the whole world, tall enough to stand on
+          { x: 0,    y: PLAYFIELD_H - 30, w: 2000, h: 30, type: 'ground' },
+          // Platforms: {x, y, w, h}
+          { x: 200,  y: 340, w: 120, h: 14 },
+          { x: 380,  y: 280, w: 120, h: 14 },
+          { x: 560,  y: 220, w: 140, h: 14 },
+          { x: 750,  y: 280, w: 100, h: 14 },
+          { x: 900,  y: 340, w: 130, h: 14 },
+          { x: 1060, y: 260, w: 120, h: 14 },
+          { x: 1230, y: 190, w: 160, h: 14 },
+          { x: 1450, y: 250, w: 120, h: 14 },
+          { x: 1650, y: 310, w: 200, h: 14 },
+          // Moving platform marker — handled in JS
+          { x: 700,  y: 380, w: 90,  h: 14, moving: true, range: 140, speed: 1.5 },
+        ],
+        enemies: [
+          { x: 450, y: PLAYFIELD_H - 60, patrol: 150 },
+          { x: 930, y: PLAYFIELD_H - 60, patrol: 120 },
+          { x: 1480, y: PLAYFIELD_H - 60, patrol: 180 },
+        ],
+        spikes: [
+          { x: 310,  y: PLAYFIELD_H - 50 },
+          { x: 640,  y: PLAYFIELD_H - 50 },
+          { x: 1100, y: PLAYFIELD_H - 50 },
+          { x: 1350, y: PLAYFIELD_H - 50 },
+        ],
+        coins: [
+          { x: 240, y: 310 }, { x: 420, y: 250 }, { x: 600, y: 190 },
+          { x: 790, y: 250 }, { x: 1090, y: 230 }, { x: 1470, y: 220 },
+        ],
+        goal: { x: 1880, y: PLAYFIELD_H - 70 },
+        playerStart: { x: 60, y: PLAYFIELD_H - 80 },
+      },
+
+      // ─────────── LEVEL 2 — Rising Challenge ───────────
+      {
+        worldWidth: 2400,
+        bgColor: 'linear-gradient(180deg, #050510 0%, #100515 60%, #080820 100%)',
+        platforms: [
+          { x: 0,    y: PLAYFIELD_H - 30, w: 600,  h: 30, type: 'ground' },
+          { x: 700,  y: PLAYFIELD_H - 30, w: 200,  h: 30, type: 'ground' },
+          { x: 1100, y: PLAYFIELD_H - 30, w: 300,  h: 30, type: 'ground' },
+          { x: 1700, y: PLAYFIELD_H - 30, w: 700,  h: 30, type: 'ground' },
+          // Floating platforms
+          { x: 130,  y: 300, w: 100, h: 14 },
+          { x: 300,  y: 230, w: 100, h: 14 },
+          { x: 470,  y: 165, w: 80,  h: 14 },
+          { x: 620,  y: 240, w: 90,  h: 14 },
+          { x: 800,  y: 310, w: 80,  h: 14 },
+          { x: 940,  y: 225, w: 100, h: 14 },
+          { x: 1080, y: 160, w: 100, h: 14 },
+          { x: 1240, y: 230, w: 90,  h: 14 },
+          { x: 1380, y: 290, w: 110, h: 14 },
+          { x: 1540, y: 210, w: 100, h: 14 },
+          // Moving platforms
+          { x: 400,  y: 350, w: 80,  h: 14, moving: true, range: 160, speed: 2.0 },
+          { x: 1100, y: 300, w: 80,  h: 14, moving: true, range: 130, speed: 1.8 },
+          { x: 1600, y: 170, w: 80,  h: 14, moving: true, range: 100, speed: 2.5 },
+        ],
+        enemies: [
+          { x: 200, y: PLAYFIELD_H - 60, patrol: 130 },
+          { x: 750, y: PLAYFIELD_H - 60, patrol: 100 },
+          { x: 1150, y: PLAYFIELD_H - 60, patrol: 200 },
+          { x: 1800, y: PLAYFIELD_H - 60, patrol: 250 },
+        ],
+        spikes: [
+          { x: 620,  y: PLAYFIELD_H - 50 },
+          { x: 900,  y: PLAYFIELD_H - 50 },
+          { x: 940,  y: PLAYFIELD_H - 50 },
+          { x: 980,  y: PLAYFIELD_H - 50 },
+          { x: 1450, y: PLAYFIELD_H - 50 },
+          { x: 1550, y: PLAYFIELD_H - 50 },
+        ],
+        coins: [
+          { x: 160, y: 270 }, { x: 335, y: 200 }, { x: 500, y: 135 },
+          { x: 650, y: 210 }, { x: 840, y: 280 }, { x: 970, y: 195 },
+          { x: 1110, y: 130 }, { x: 1400, y: 260 }, { x: 1570, y: 180 },
+        ],
+        goal: { x: 2320, y: PLAYFIELD_H - 70 },
+        playerStart: { x: 60, y: PLAYFIELD_H - 80 },
+      },
+
+      // ─────────── LEVEL 3 — Final Gauntlet ───────────
+      {
+        worldWidth: 2800,
+        bgColor: 'linear-gradient(180deg, #050510 0%, #0a0a00 60%, #050510 100%)',
+        platforms: [
+          { x: 0,    y: PLAYFIELD_H - 30, w: 400,  h: 30, type: 'ground' },
+          { x: 600,  y: PLAYFIELD_H - 30, w: 200,  h: 30, type: 'ground' },
+          { x: 1000, y: PLAYFIELD_H - 30, w: 200,  h: 30, type: 'ground' },
+          { x: 2300, y: PLAYFIELD_H - 30, w: 500,  h: 30, type: 'ground' },
+          // Tight platform jumps
+          { x: 120,  y: 320, w: 80, h: 14 },
+          { x: 260,  y: 250, w: 80, h: 14 },
+          { x: 400,  y: 185, w: 70, h: 14 },
+          { x: 530,  y: 255, w: 70, h: 14 },
+          { x: 660,  y: 310, w: 70, h: 14 },
+          { x: 790,  y: 230, w: 70, h: 14 },
+          { x: 920,  y: 155, w: 70, h: 14 },
+          { x: 1070, y: 235, w: 80, h: 14 },
+          { x: 1210, y: 165, w: 80, h: 14 },
+          { x: 1360, y: 260, w: 80, h: 14 },
+          { x: 1510, y: 185, w: 80, h: 14 },
+          { x: 1670, y: 275, w: 80, h: 14 },
+          { x: 1840, y: 190, w: 80, h: 14 },
+          { x: 2010, y: 270, w: 80, h: 14 },
+          { x: 2160, y: 200, w: 80, h: 14 },
+          // Moving platforms — more chaotic
+          { x: 200,  y: 370, w: 70, h: 14, moving: true, range: 120, speed: 2.0 },
+          { x: 700,  y: 390, w: 70, h: 14, moving: true, range: 180, speed: 2.5 },
+          { x: 1300, y: 360, w: 70, h: 14, moving: true, range: 150, speed: 3.0 },
+          { x: 1900, y: 360, w: 70, h: 14, moving: true, range: 120, speed: 2.8 },
+          { x: 2100, y: 300, w: 70, h: 14, moving: true, range: 140, speed: 3.5 },
+        ],
+        enemies: [
+          { x: 250, y: PLAYFIELD_H - 60, patrol: 110 },
+          { x: 650, y: PLAYFIELD_H - 60, patrol: 140 },
+          { x: 1060, y: PLAYFIELD_H - 60, patrol: 130 },
+          { x: 2350, y: PLAYFIELD_H - 60, patrol: 300 },
+          { x: 2600, y: PLAYFIELD_H - 60, patrol: 150 },
+        ],
+        spikes: [
+          { x: 440,  y: PLAYFIELD_H - 50 }, { x: 460, y: PLAYFIELD_H - 50 },
+          { x: 800,  y: PLAYFIELD_H - 50 }, { x: 820, y: PLAYFIELD_H - 50 },
+          { x: 1200, y: PLAYFIELD_H - 50 }, { x: 1220, y: PLAYFIELD_H - 50 },
+          { x: 1500, y: PLAYFIELD_H - 50 }, { x: 1660, y: PLAYFIELD_H - 50 },
+          { x: 2050, y: PLAYFIELD_H - 50 }, { x: 2200, y: PLAYFIELD_H - 50 },
+        ],
+        coins: [
+          { x: 150, y: 290 }, { x: 290, y: 220 }, { x: 425, y: 155 },
+          { x: 820, y: 200 }, { x: 950, y: 125 }, { x: 1240, y: 135 },
+          { x: 1540, y: 155 }, { x: 1870, y: 160 }, { x: 2190, y: 170 },
+        ],
+        goal: { x: 2720, y: PLAYFIELD_H - 70 },
+        playerStart: { x: 60, y: PLAYFIELD_H - 80 },
+      },
+    ];
+
+    // ═══════════════════════════════════════════
+    // GAME STATE — all mutable game data lives here
+    // Keeping state in one object makes it easy to reset
+    // ═══════════════════════════════════════════
+    let state = {};
+
+    function createInitialState() {
+      return {
+        running:      false,
+        currentLevel: 0,
+        score:        0,
+        lives:        3,
+        // Player physics
+        player: {
+          x: 0, y: 0,       // World position (not screen)
+          vx: 0, vy: 0,     // Velocity
+          onGround: false,
+          jumping: false,
+          walking: false,
+          invincible: false, // Brief invincibility after hit
+          invincibleTimer: 0,
+          width: 28,
+          height: 36,
+        },
+        // Camera offset — how many px the world has scrolled left
+        cameraX: 0,
+        // Dynamic world objects (populated per level)
+        platforms: [],
+        enemies: [],
+        spikes: [],
+        coins: [],
+        goal: null,
+        movingPlatforms: [], // { el, x, y, startX, range, speed, dir }
+        // Input state — true while key is held
+        keys: { left: false, right: false, up: false },
+        animFrameId: null,
+        lastTime: 0,
+      };
+    }
+
+    // ═══════════════════════════════════════════
+    // DOM REFERENCES — cache these so we're not
+    // querying the DOM every frame (slow!)
+    // ═══════════════════════════════════════════
+    const gameCanvas    = document.getElementById('game-canvas');
+    const gameWrapper   = document.getElementById('game-wrapper');
+    const bgFar         = document.getElementById('bg-far');
+    const bgNear        = document.getElementById('bg-near');
+    const hudScore      = document.getElementById('hud-score');
+    const hudLevel      = document.getElementById('hud-level');
+    const hudLives      = document.getElementById('hud-lives');
+    const damageFlash   = document.getElementById('damage-flash');
+    const levelFlash    = document.getElementById('level-flash');
+    const screenStart   = document.getElementById('screen-start');
+    const screenWin     = document.getElementById('screen-win');
+    const screenGameover= document.getElementById('screen-gameover');
+    const screenComplete= document.getElementById('screen-complete');
+    const btnNext       = document.getElementById('btn-next');
+
+    let playerEl = null; // Will be created by buildLevel()
+
+    // ═══════════════════════════════════════════
+    // WEB AUDIO API — Sound effects without files
+    // AudioContext is the browser's built-in audio engine.
+    // We generate beeps/blips by creating oscillators.
+    // ═══════════════════════════════════════════
+    let audioCtx = null;
+
+    function getAudioCtx() {
+      // Create lazily on first sound (browser policy: audio must start after user gesture)
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      return audioCtx;
+    }
+
+    // playTone(freq, duration, type, volume, fadeOut)
+    // Creates a short beep: freq = pitch in Hz, type = 'sine'|'square'|'sawtooth'
+    function playTone(freq, duration, type = 'square', volume = 0.15, fadeOut = true) {
+      try {
+        const ctx = getAudioCtx();
+        const osc = ctx.createOscillator();  // Generates waveform
+        const gain = ctx.createGain();       // Controls volume
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);       // Output to speakers
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+        gain.gain.setValueAtTime(volume, ctx.currentTime);
+        if (fadeOut) {
+          // Ramp volume to 0 at end — avoids "click" artifact
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+        }
+
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + duration);
+      } catch(e) {
+        // Audio might fail silently — that's fine
+      }
+    }
+
+    // Named sound effects
+    const SFX = {
+      jump:   () => playTone(320, 0.15, 'square', 0.12),
+      land:   () => playTone(180, 0.08, 'sine',   0.08),
+      coin:   () => { playTone(880, 0.08, 'sine', 0.12); setTimeout(() => playTone(1200, 0.12, 'sine', 0.1), 60); },
+      hit:    () => { playTone(200, 0.1, 'sawtooth', 0.2); playTone(120, 0.15, 'sawtooth', 0.15); },
+      win:    () => { [523,659,784,1047].forEach((f,i) => setTimeout(() => playTone(f, 0.25, 'sine', 0.15), i*120)); },
+      die:    () => { [400,300,200,120].forEach((f,i) => setTimeout(() => playTone(f, 0.15, 'sawtooth', 0.18), i*80)); },
+    };
+
+    // ═══════════════════════════════════════════
+    // INPUT HANDLING
+    // We track which keys are held (not just pressed once)
+    // so movement is smooth and continuous.
+    // ═══════════════════════════════════════════
+    document.addEventListener('keydown', (e) => {
+      if (!state.running) return;
+      switch (e.code) {
+        case 'ArrowLeft':  case 'KeyA': state.keys.left  = true; break;
+        case 'ArrowRight': case 'KeyD': state.keys.right = true; break;
+        case 'ArrowUp':    case 'KeyW': case 'Space':
+          state.keys.up = true;
+          // Only jump if we're on the ground — prevents double jump
+          if (state.player.onGround) jump();
+          break;
+      }
+      // Prevent page scrolling with arrow keys
+      if (['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(e.code)) e.preventDefault();
+    });
+
+    document.addEventListener('keyup', (e) => {
+      switch (e.code) {
+        case 'ArrowLeft':  case 'KeyA': state.keys.left  = false; break;
+        case 'ArrowRight': case 'KeyD': state.keys.right = false; break;
+        case 'ArrowUp':    case 'KeyW': case 'Space': state.keys.up = false; break;
+      }
+    });
+
+    // ═══════════════════════════════════════════
+    // JUMP — applies upward velocity
+    // ═══════════════════════════════════════════
+    function jump() {
+      if (!state.player.onGround) return;
+      state.player.vy = JUMP_FORCE;
+      state.player.onGround = false;
+      SFX.jump();
+      // Trigger CSS squish animation
+      playerEl.classList.remove('jumping', 'walking');
+      void playerEl.offsetWidth; // Force reflow so animation restarts
+      playerEl.classList.add('jumping');
+    }
+
+    // ═══════════════════════════════════════════
+    // BUILD LEVEL — creates all DOM elements for a level
+    // ═══════════════════════════════════════════
+    function buildLevel(levelIndex) {
+      const lvl = LEVELS[levelIndex];
+
+      // Clear previous level's elements
+      gameCanvas.innerHTML = '';
+      state.movingPlatforms = [];
+      state.platforms = [];
+      state.enemies = [];
+      state.spikes = [];
+      state.coins = [];
+
+      // Size the canvas to this level's world width
+      gameCanvas.style.width  = lvl.worldWidth + 'px';
+      gameCanvas.style.height = PLAYFIELD_H + 'px';
+      gameCanvas.style.top    = HUD_H + 'px';
+
+      // Set background
+      gameWrapper.style.background = lvl.bgColor;
+
+      // ── BUILD PLATFORMS ──
+      lvl.platforms.forEach(p => {
+        const el = document.createElement('div');
+        el.className = 'platform' + (p.type === 'ground' ? ' ground' : '') + (p.moving ? ' moving' : '');
+        el.style.left   = p.x + 'px';
+        el.style.top    = p.y + 'px';
+        el.style.width  = p.w + 'px';
+        el.style.height = p.h + 'px';
+        gameCanvas.appendChild(el);
+
+        // Store platform data for collision detection
+        // We need actual rect each frame, so for moving ones we update separately
+        const platData = { el, x: p.x, y: p.y, w: p.w, h: p.h, moving: !!p.moving };
+        state.platforms.push(platData);
+
+        if (p.moving) {
+          // Moving platform state: tracks current pos, direction, range
+          state.movingPlatforms.push({
+            platData,
+            startX: p.x,
+            range:  p.range,
+            speed:  p.speed,
+            dir:    1,         // 1 = moving right, -1 = left
+            el,
+          });
+        }
+      });
+
+      // ── BUILD ENEMIES ──
+      lvl.enemies.forEach(e => {
+        const el = document.createElement('div');
+        el.className = 'enemy';
+        el.style.left = e.x + 'px';
+        el.style.top  = e.y + 'px';
+        gameCanvas.appendChild(el);
+        state.enemies.push({
+          el,
+          x: e.x, y: e.y,
+          startX: e.x,
+          patrol: e.patrol,
+          dir: 1,
+          w: 30, h: 30
+        });
+      });
+
+      // ── BUILD SPIKES ──
+      lvl.spikes.forEach(s => {
+        const el = document.createElement('div');
+        el.className = 'spike';
+        el.style.left = s.x + 'px';
+        el.style.top  = (s.y - 20) + 'px'; // tip points up
+        gameCanvas.appendChild(el);
+        state.spikes.push({ el, x: s.x, y: s.y - 20, w: 20, h: 20 });
+      });
+
+      // ── BUILD COINS ──
+      lvl.coins.forEach(c => {
+        const el = document.createElement('div');
+        el.className = 'coin';
+        el.style.left = c.x + 'px';
+        el.style.top  = c.y + 'px';
+        gameCanvas.appendChild(el);
+        state.coins.push({ el, x: c.x, y: c.y, w: 16, h: 16, collected: false });
+      });
+
+      // ── BUILD GOAL ──
+      const goalEl = document.createElement('div');
+      goalEl.className = 'goal';
+      goalEl.style.left = lvl.goal.x + 'px';
+      goalEl.style.top  = lvl.goal.y + 'px';
+      gameCanvas.appendChild(goalEl);
+      state.goal = { el: goalEl, x: lvl.goal.x, y: lvl.goal.y, w: 32, h: 32 };
+
+      // ── BUILD PLAYER ──
+      playerEl = document.createElement('div');
+      playerEl.id = 'player';
+      gameCanvas.appendChild(playerEl);
+
+      // Place player at level start
+      state.player.x = lvl.playerStart.x;
+      state.player.y = lvl.playerStart.y;
+      state.player.vx = 0;
+      state.player.vy = 0;
+      state.player.onGround = false;
+
+      // Reset camera
+      state.cameraX = 0;
+
+      // Update HUD
+      hudLevel.textContent = levelIndex + 1;
+    }
+
+    // ═══════════════════════════════════════════
+    // COLLISION DETECTION
+    // AABB = Axis-Aligned Bounding Box
+    // Two rectangles overlap if they overlap on BOTH axes.
+    // Returns true if rect A and rect B intersect.
+    // ═══════════════════════════════════════════
+    function rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
+      return ax < bx + bw &&
+             ax + aw > bx &&
+             ay < by + bh &&
+             ay + ah > by;
+    }
+
+    // ═══════════════════════════════════════════
+    // PLATFORM COLLISION RESOLUTION
+    // We check if the player overlaps any platform,
+    // then push them out of the top (or sides).
+    // Only resolves from TOP to allow landing on platforms.
+    // ═══════════════════════════════════════════
+    function resolvePlayerPlatformCollisions() {
+      const p = state.player;
+      let wasOnGround = p.onGround;
+      p.onGround = false;
+
+      state.platforms.forEach(plat => {
+        if (!rectsOverlap(p.x, p.y, p.width, p.height, plat.x, plat.y, plat.w, plat.h)) return;
+
+        // Compute overlap depth on each side
+        const overlapBottom = (p.y + p.height) - plat.y;         // Player bottom vs platform top
+        const overlapTop    = (plat.y + plat.h) - p.y;           // Platform bottom vs player top
+        const overlapRight  = (p.x + p.width)  - plat.x;         // Player right vs platform left
+        const overlapLeft   = (plat.x + plat.w) - p.x;           // Platform right vs player left
+
+        const minOverlap = Math.min(overlapBottom, overlapTop, overlapRight, overlapLeft);
+
+        if (minOverlap === overlapBottom && p.vy >= 0) {
+          // Landing on top of platform
+          p.y = plat.y - p.height;
+          p.vy = 0;
+          p.onGround = true;
+          if (!wasOnGround) SFX.land(); // Play landing sound
+        } else if (minOverlap === overlapTop && p.vy < 0) {
+          // Hitting underside of platform (head bump)
+          p.y = plat.y + plat.h;
+          p.vy = 0;
+        } else if (minOverlap === overlapRight && p.vx > 0) {
+          // Walking into right wall
+          p.x = plat.x - p.width;
+          p.vx = 0;
+        } else if (minOverlap === overlapLeft && p.vx < 0) {
+          // Walking into left wall
+          p.x = plat.x + plat.w;
+          p.vx = 0;
+        }
+      });
+    }
+
+    // ═══════════════════════════════════════════
+    // TAKE DAMAGE — called when player hits enemy/spike
+    // ═══════════════════════════════════════════
+    function takeDamage() {
+      if (state.player.invincible) return; // Brief window of immunity
+
+      state.lives--;
+      SFX.hit();
+      hudLives.textContent = state.lives;
+
+      // Flash red
+      damageFlash.style.opacity = 1;
+      setTimeout(() => damageFlash.style.opacity = 0, 200);
+
+      if (state.lives <= 0) {
+        // Game over
+        gameOver();
+        return;
+      }
+
+      // Respawn at level start with brief invincibility
+      const lvl = LEVELS[state.currentLevel];
+      state.player.x  = lvl.playerStart.x;
+      state.player.y  = lvl.playerStart.y;
+      state.player.vx = 0;
+      state.player.vy = 0;
+      state.player.invincible = true;
+      state.player.invincibleTimer = 90; // frames (90 frames ≈ 1.5s at 60fps)
+    }
+
+    // ═══════════════════════════════════════════
+    // SPAWN PARTICLES — visual burst effect
+    // ═══════════════════════════════════════════
+    function spawnParticles(worldX, worldY, color, count = 8) {
+      // Convert world position to screen position for placing particle
+      const screenX = worldX - state.cameraX;
+      const screenY = worldY + HUD_H;
+
+      for (let i = 0; i < count; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.background = color;
+
+        // Random direction and distance for each particle
+        const angle = (Math.PI * 2 * i) / count;
+        const dist  = 20 + Math.random() * 30;
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist;
+
+        p.style.setProperty('--dx', dx + 'px');
+        p.style.setProperty('--dy', dy + 'px');
+        p.style.left = screenX + 'px';
+        p.style.top  = screenY + 'px';
+        p.style.animation = `particle-anim ${0.4 + Math.random() * 0.3}s ease-out forwards`;
+
+        gameWrapper.appendChild(p);
+        // Remove from DOM after animation completes
+        setTimeout(() => p.remove(), 800);
+      }
+    }
+
+    // ═══════════════════════════════════════════
+    // UPDATE FUNCTION — runs every frame
+    // This is the core game loop logic.
+    // ═══════════════════════════════════════════
+    function update() {
+      const p = state.player;
+
+      // ── INVINCIBILITY TIMER ──
+      if (p.invincible) {
+        p.invincibleTimer--;
+        // Blink the player while invincible
+        playerEl.style.opacity = (Math.floor(p.invincibleTimer / 5) % 2 === 0) ? '0.4' : '1';
+        if (p.invincibleTimer <= 0) {
+          p.invincible = false;
+          playerEl.style.opacity = '1';
+        }
+      }
+
+      // ── HORIZONTAL MOVEMENT ──
+      if (state.keys.left)  p.vx -= 1.2;   // Accelerate left
+      if (state.keys.right) p.vx += 1.2;   // Accelerate right
+
+      // Cap horizontal speed
+      p.vx = Math.max(-MOVE_SPEED, Math.min(MOVE_SPEED, p.vx));
+
+      // Apply friction when no key pressed (smooth deceleration)
+      if (!state.keys.left && !state.keys.right) {
+        p.vx *= FRICTION;
+        // Stop completely when very slow (avoids drift)
+        if (Math.abs(p.vx) < 0.1) p.vx = 0;
+      }
+
+      // ── GRAVITY ──
+      p.vy += GRAVITY;
+      // Clamp fall speed (prevents phasing through thin platforms)
+      p.vy = Math.min(p.vy, TERMINAL_VEL);
+
+      // ── MOVE PLAYER ──
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // ── WORLD BOUNDS ──
+      const lvl = LEVELS[state.currentLevel];
+      if (p.x < 0) { p.x = 0; p.vx = 0; }
+      if (p.x + p.width > lvl.worldWidth) { p.x = lvl.worldWidth - p.width; p.vx = 0; }
+
+      // ── COLLISION WITH PLATFORMS ──
+      resolvePlayerPlatformCollisions();
+
+      // ── FALL INTO PIT ──
+      // If player falls below the world, they die
+      if (p.y > PLAYFIELD_H + 60) {
+        SFX.die();
+        takeDamage();
+        return;
+      }
+
+      // ── UPDATE MOVING PLATFORMS ──
+      state.movingPlatforms.forEach(mp => {
+        mp.platData.x += mp.speed * mp.dir;
+        // Reverse direction at range endpoints
+        if (mp.platData.x > mp.startX + mp.range) { mp.dir = -1; }
+        if (mp.platData.x < mp.startX)             { mp.dir =  1; }
+        // Move the DOM element
+        mp.el.style.left = mp.platData.x + 'px';
+      });
+
+      // ── UPDATE ENEMIES ──
+      state.enemies.forEach(en => {
+        en.x += en.dir * 1.6;
+        // Patrol: reverse at edges
+        if (en.x > en.startX + en.patrol) en.dir = -1;
+        if (en.x < en.startX)             en.dir =  1;
+        en.el.style.left = en.x + 'px';
+        // Flip enemy sprite direction (CSS scaleX)
+        en.el.style.transform = en.dir === -1 ? 'scaleX(-1)' : '';
+
+        // Collision with player
+        if (!p.invincible && rectsOverlap(p.x, p.y, p.width, p.height, en.x, en.y, en.w, en.h)) {
+          takeDamage();
+        }
+      });
+
+      // ── CHECK SPIKES ──
+      state.spikes.forEach(s => {
+        if (!p.invincible && rectsOverlap(p.x, p.y, p.width, p.height, s.x, s.y, s.w, s.h)) {
+          takeDamage();
+        }
+      });
+
+      // ── CHECK COINS ──
+      state.coins.forEach(c => {
+        if (c.collected) return;
+        if (rectsOverlap(p.x, p.y, p.width, p.height, c.x, c.y, c.w, c.h)) {
+          c.collected = true;
+          c.el.style.display = 'none';
+          state.score += 100;
+          hudScore.textContent = state.score;
+          SFX.coin();
+          spawnParticles(c.x + 8, c.y - HUD_H, '#ffe600', 6);
+        }
+      });
+
+      // ── CHECK GOAL ──
+      const g = state.goal;
+      if (g && rectsOverlap(p.x, p.y, p.width, p.height, g.x, g.y, g.w, g.h)) {
+        winLevel();
+        return;
+      }
+
+      // ── UPDATE CSS ANIMATIONS ──
+      // Apply walking animation
+      const isWalking = (state.keys.left || state.keys.right) && p.onGround;
+      if (isWalking && !playerEl.classList.contains('jumping')) {
+        playerEl.classList.add('walking');
+      } else {
+        playerEl.classList.remove('walking');
+      }
+
+      // ── CAMERA FOLLOW ──
+      // Target: keep player horizontally centered in viewport
+      const targetCameraX = p.x - VIEWPORT_W / 2 + p.width / 2;
+      // Clamp so camera doesn't go past world edges
+      state.cameraX = Math.max(0, Math.min(targetCameraX, lvl.worldWidth - VIEWPORT_W));
+      // Shift the world (smooth via CSS transition on #game-canvas)
+      gameCanvas.style.left = -state.cameraX + 'px';
+
+      // Parallax: background layers move slower than foreground
+      bgFar.style.transform  = `translateX(${-state.cameraX * 0.2}px)`;
+      bgNear.style.transform = `translateX(${-state.cameraX * 0.5}px)`;
+
+      // ── RENDER PLAYER ──
+      // Use CSS transform (GPU accelerated) instead of top/left for smooth motion
+      playerEl.style.left = p.x + 'px';
+      playerEl.style.top  = p.y + 'px';
+    }
+
+    // ═══════════════════════════════════════════
+    // GAME LOOP — requestAnimationFrame
+    // The browser calls this before each repaint (~60fps).
+    // This is the right way to run animations — synced to display refresh.
+    // ═══════════════════════════════════════════
+    function gameLoop(timestamp) {
+      if (!state.running) return;
+
+      update();
+
+      // Schedule next frame
+      state.animFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    // ═══════════════════════════════════════════
+    // WIN LEVEL
+    // ═══════════════════════════════════════════
+    function winLevel() {
+      state.running = false;
+      cancelAnimationFrame(state.animFrameId);
+      SFX.win();
+      state.score += 500; // Bonus for completing level
+      hudScore.textContent = state.score;
+
+      spawnParticles(state.player.x + 14, state.player.y - HUD_H, '#ffe600', 14);
+
+      if (state.currentLevel < LEVELS.length - 1) {
+        // More levels remain
+        document.getElementById('win-msg').textContent =
+          `Level ${state.currentLevel + 1} complete! +500 bonus! Score: ${state.score}`;
+        btnNext.style.display = '';
+        screenWin.style.display = 'flex';
+      } else {
+        // All levels done
+        document.getElementById('complete-msg').textContent =
+          `All levels cleared! Final Score: ${state.score}`;
+        screenComplete.style.display = 'flex';
+      }
+    }
+
+    // ═══════════════════════════════════════════
+    // NEXT LEVEL — called by "Next Level" button
+    // ═══════════════════════════════════════════
+    function nextLevel() {
+      state.currentLevel++;
+      screenWin.style.display = 'none';
+
+      // Flash white between levels
+      levelFlash.style.opacity = 1;
+      setTimeout(() => {
+        levelFlash.style.opacity = 0;
+        buildLevel(state.currentLevel);
+        state.running = true;
+        requestAnimationFrame(gameLoop);
+      }, 300);
+    }
+
+    // ═══════════════════════════════════════════
+    // GAME OVER
+    // ═══════════════════════════════════════════
+    function gameOver() {
+      state.running = false;
+      cancelAnimationFrame(state.animFrameId);
+      document.getElementById('gameover-msg').textContent =
+        `You ran out of lives. Final Score: ${state.score}`;
+      screenGameover.style.display = 'flex';
+    }
+
+    // ═══════════════════════════════════════════
+    // START / RESTART
+    // ═══════════════════════════════════════════
+    function startGame() {
+      screenStart.style.display = 'none';
+      state = createInitialState();
+      state.running = true;
+      buildLevel(0);
+      hudScore.textContent = '0';
+      hudLives.textContent = '3';
+      requestAnimationFrame(gameLoop);
+    }
+
+    function restartGame() {
+      // Hide all overlay screens
+      screenWin.style.display      = 'none';
+      screenGameover.style.display = 'none';
+      screenComplete.style.display = 'none';
+      cancelAnimationFrame(state.animFrameId);
+      startGame();
+    }
+
+    // Expose to button onclick handlers
+    window.startGame   = startGame;
+    window.restartGame = restartGame;
+    window.nextLevel   = nextLevel;
+
+  </script>
+</body>
+</html>
